@@ -19,7 +19,8 @@ type Scraper struct {
 	pageResults uint
 	channelIDs  []string
 
-	logger *slog.Logger
+	logger     *slog.Logger
+	loggerRoot *slog.Logger
 }
 
 var _ scraper.Interface = (*Scraper)(nil)
@@ -38,7 +39,8 @@ func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults 
 		pageResults: pageResults,
 		channelIDs:  channelIDs,
 
-		logger: logger.With("module", "scraper.youtube.Scraper"),
+		logger:     logger.With("module", "scraper.youtube.Scraper"),
+		loggerRoot: logger,
 	}, nil
 }
 
@@ -53,7 +55,8 @@ func (s *Scraper) Scrape() ([]*model.Game, error) {
 		videos = append(videos, v...)
 	}
 
-	return parseGames(videos), nil
+	s.logger.Info("converting videos", "videos", len(videos))
+	return convertVideosToGames(s.loggerRoot.With("module", "scraper.youtube.Convert"), videos)
 }
 
 func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err error) {
