@@ -1,10 +1,13 @@
 package cmd
 
 import (
-	"fmt"
+	goerrors "errors"
 	"log/slog"
+	"os"
 
+	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper/youtube"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +38,7 @@ func init() {
 	scrapeCmd.Flags().StringSliceVar(&youtubeChannelIDs, "youtube-channel-ids", []string{"UCYJ61XIK64sp6ZFFS8sctxw"}, "comma-separated list of channel IDs to scrape")
 }
 
-func scrape() error {
+func scrape() (err error) {
 	youtube, err := youtube.NewScraper(slog.Default(), youtubeApiKey, youtubePageLimit, youtubePageResults, youtubeChannelIDs)
 	if err != nil {
 		return err
@@ -45,7 +48,13 @@ func scrape() error {
 		return err
 	}
 
-	fmt.Println("scraped", len(games))
+	file, err := os.Create(csvDataPath)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer func() {
+		err = goerrors.Join(file.Close(), err)
+	}()
 
-	return nil
+	return model.CSVWrite(file, games)
 }

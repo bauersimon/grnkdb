@@ -43,13 +43,13 @@ func TestConvertVideosToGames(t *testing.T) {
 	}
 
 	validate(t, &testCase{
-		Name: "Single Let's Play",
+		Name: "Prefix",
 
 		Videos: []*youtube.PlaylistItem{
 			&youtube.PlaylistItem{
 				Snippet: &youtube.PlaylistItemSnippet{
 					Title:       "Let's Play Minecraft #001 [Deutsch] [HD] - Alles auf Anfang",
-					PublishedAt: "2020-10-19T19:00:17Z",
+					PublishedAt: "2010-10-19T19:00:17Z",
 					ResourceId: &youtube.ResourceId{
 						VideoId: "DM52HxaLK-Y",
 					},
@@ -82,10 +82,60 @@ func TestConvertVideosToGames(t *testing.T) {
 					&model.Content{
 						Source: model.SourceYouTube,
 						Start: func() time.Time {
-							p, _ := time.Parse(time.RFC3339, "2020-10-19T19:00:17Z")
+							p, _ := time.Parse(time.RFC3339, "2010-10-19T19:00:17Z")
 							return p
 						}(),
 						Link: "https://www.youtube.com/watch?v=DM52HxaLK-Y",
+					},
+				},
+			},
+		},
+	})
+
+	validate(t, &testCase{
+		Name: "Suffix",
+
+		Videos: []*youtube.PlaylistItem{
+			&youtube.PlaylistItem{
+				Snippet: &youtube.PlaylistItemSnippet{
+					Title:       "Der Mann mit dem Hut ist wieder da! 🛕 INDIANA JONES AND THE GREAT CIRCLE #01",
+					PublishedAt: "2025-12-13T19:00:17Z",
+					ResourceId: &youtube.ResourceId{
+						VideoId: "XONCCUxHGxo",
+					},
+				},
+			},
+			&youtube.PlaylistItem{
+				Snippet: &youtube.PlaylistItemSnippet{
+					Title:       "Schwarze Hemden, niedrige Lebenserwartung 🛕 INDIANA JONES AND THE GREAT CIRCLE #02",
+					PublishedAt: "2025-12-14T19:00:17Z",
+					ResourceId: &youtube.ResourceId{
+						VideoId: "wVsDQx0SY1M",
+					},
+				},
+			},
+			&youtube.PlaylistItem{
+				Snippet: &youtube.PlaylistItemSnippet{
+					Title:       "Indiana Jones und das Geheimnis der Schwerkraft 🛕 INDIANA JONES AND THE GREAT CIRCLE #03",
+					PublishedAt: "2025-12-15T19:00:17Z",
+					ResourceId: &youtube.ResourceId{
+						VideoId: "9Ack9uoQRIM",
+					},
+				},
+			},
+		},
+
+		Expected: []*model.Game{
+			&model.Game{
+				Name: "Indiana Jones And The Great Circle",
+				Content: []*model.Content{
+					&model.Content{
+						Source: model.SourceYouTube,
+						Start: func() time.Time {
+							p, _ := time.Parse(time.RFC3339, "2025-12-13T19:00:17Z")
+							return p
+						}(),
+						Link: "https://www.youtube.com/watch?v=XONCCUxHGxo",
 					},
 				},
 			},
@@ -138,4 +188,11 @@ func TestLongestCommonPrefix(t *testing.T) {
 			assert.Equal(t, test.expected, actual)
 		})
 	}
+}
+
+func TestReverseString(t *testing.T) {
+	assert.Equal(t, "aaa", reverseString("aaa"))
+	assert.Equal(t, "", reverseString(""))
+	assert.Equal(t, "abc", reverseString("cba"))
+	assert.Equal(t, "abcd", reverseString("dcba"))
 }

@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"slices"
+	"strings"
+	"time"
+)
 
 // Game represents a game.
 type Game struct {
@@ -13,9 +17,20 @@ type Game struct {
 // SourceType is a source type.
 type SourceType string
 
+var allSourceTypes []SourceType
+
+func sourceType(s string) SourceType {
+	newSourceType := SourceType(s)
+	allSourceTypes = append(allSourceTypes, newSourceType)
+	slices.SortStableFunc(allSourceTypes, func(a, b SourceType) int {
+		return strings.Compare(string(a), string(b))
+	})
+	return newSourceType
+}
+
 var (
 	// SourceYouTube is the YouTube source.
-	SourceYouTube = SourceType("youtube")
+	SourceYouTube = sourceType("youtube")
 )
 
 // Content represents content.
