@@ -7,6 +7,7 @@ pkgs.mkShell {
     gopls
     gotools
     delve
+    tailwindcss_4
   ];
 
   # Environment setup using go env
