@@ -1,7 +1,18 @@
 {{ define "table"}}
-  <ul>
+  <div class="grid grid-cols-2 gap-4">
     {{ range . }}
-      <li>{{ .Name }}</li>    
+    <div>
+      <p>{{ .Name }}</p>
+    </div>
+    <div>
+      <ul>
+      {{ range .Content }}
+        <li>
+          <a href="{{ .Link }}">{{ .Source }} <span class="text-black/50">({{ .Start.Format "02.01.2006"}})</span></a>
+        </li>
+      {{ end }}
+      </ul>
+    </div>
     {{ end }}
-  </ul>
+  </div>
 {{ end }}

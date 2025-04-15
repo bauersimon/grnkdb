@@ -7,10 +7,19 @@
     <title>grnkdb</title>
   </head>
   <body>
-    <h1 class="text-3xl font-bold">grnkdb</h1>
-
-    <p>Diese Seite ist WORK-IN-PROGRESS.</p><br/>
-    
-    {{ template "table" . }}
+    <div class="container mx-auto mt-3">
+      <div>
+        <h1 class="font-bold text-3xl">grnkdb</h1>
+      </div>
+      <div class="my-5">
+        <p class="text-black/50"><a href="https://www.youtube.com/gronkh" target="_blank">Gronkh</a> Videospiele-Datenbank. Angaben ohne Gewähr. Work-In-Progress!</p>
+      </div>
+      <div class="my-5">
+      {{ template "table" . }}
+      </div>
+      <div class="mb-3">
+        <p class="text-black/50">by <a href="https://bauersimon.de" target="_blank">🐧</a></p>
+      </div>
+    </div>
   </body>
 </html>
