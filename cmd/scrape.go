@@ -4,6 +4,7 @@ import (
 	goerrors "errors"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper/youtube"
@@ -30,7 +31,7 @@ var (
 func init() {
 	rootCmd.AddCommand(scrapeCmd)
 
-	scrapeCmd.Flags().StringVar(&csvDataPath, "data-path", "data.csv", "data output path")
+	scrapeCmd.Flags().StringVar(&csvDataPath, "data-path", "./public/data.csv", "data output path")
 	scrapeCmd.Flags().StringVar(&youtubeApiKey, "youtube-api-key", "", "YouTube API key")
 	scrapeCmd.MarkFlagRequired("youtube-api-key")
 	scrapeCmd.Flags().UintVar(&youtubePageResults, "youtube-page-results", 50, "YouTube results per request")
@@ -46,6 +47,10 @@ func scrape() (err error) {
 	games, err := youtube.Scrape()
 	if err != nil {
 		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(csvDataPath), 0700); err != nil {
+		return errors.WithStack(err)
 	}
 
 	file, err := os.Create(csvDataPath)

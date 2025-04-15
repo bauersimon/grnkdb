@@ -33,7 +33,7 @@ var (
 func init() {
 	rootCmd.AddCommand(webCmd)
 
-	webCmd.Flags().StringVar(&gameDataPath, "data-path", "data.csv", "data input path")
+	webCmd.Flags().StringVar(&gameDataPath, "data-path", "./public/data.csv", "data input path")
 	webCmd.Flags().StringVar(&templateDataPath, "template-path", "./web/html", "template path")
 	webCmd.Flags().StringVar(&htmlDataPath, "html-path", "./public", "html output path")
 	webCmd.Flags().BoolVarP(&loopGeneration, "live", "l", false, "re-generate periodically")
