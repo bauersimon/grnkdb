@@ -30,12 +30,13 @@ func convertVideosToGames(logger *slog.Logger, videos []*youtube.PlaylistItem) (
 	cleanupVideoMeta(videos)
 
 	logger.Debug("extracting unique games")
-	earliestVideoForPreSuffix := map[string]*youtube.PlaylistItem{}
+	earliestVideoForGame := map[string]*youtube.PlaylistItem{}
 	for _, video := range videos {
+		// Brute force try to find similar pre- or suffixes among all found games.
 		var newFix string
 		var oldFix string
 
-		for preSuffix := range maps.Keys(earliestVideoForPreSuffix) {
+		for preSuffix := range maps.Keys(earliestVideoForGame) {
 			newPrefix := longestCommonPrefix(
 				strings.ToLower(video.Snippet.Title),
 				strings.ToLower(preSuffix),
@@ -68,21 +69,21 @@ func convertVideosToGames(logger *slog.Logger, videos []*youtube.PlaylistItem) (
 		}
 		if newFix != "" {
 			if newFix != oldFix { // Shorten the specifier.
-				earliestVideo := earliestVideoForPreSuffix[oldFix]
-				delete(earliestVideoForPreSuffix, oldFix)
-				earliestVideoForPreSuffix[newFix] = earliestVideo
+				earliestVideo := earliestVideoForGame[oldFix]
+				delete(earliestVideoForGame, oldFix)
+				earliestVideoForGame[newFix] = earliestVideo
 			}
-			if compareVideos(video, earliestVideoForPreSuffix[newFix]) < 0 { // Found earlier video.
-				earliestVideoForPreSuffix[newFix] = video
+			if compareVideos(video, earliestVideoForGame[newFix]) < 0 { // Found earlier video.
+				earliestVideoForGame[newFix] = video
 			}
 		} else {
-			earliestVideoForPreSuffix[video.Snippet.Title] = video
+			earliestVideoForGame[video.Snippet.Title] = video
 			logger.Debug("no match", "video", video.Snippet.Title)
 		}
 	}
 
 	caser := cases.Title(language.German)
-	for title, video := range earliestVideoForPreSuffix {
+	for title, video := range earliestVideoForGame {
 		published, _ := time.Parse(time.RFC3339, video.Snippet.PublishedAt)
 		games = append(games, &model.Game{
 			Name: caser.String(strings.Trim(title, "-:\" ")),
@@ -102,35 +103,73 @@ func convertVideosToGames(logger *slog.Logger, videos []*youtube.PlaylistItem) (
 	return games, nil
 }
 
-var cleanupVideoTitleREs = []*regexp.Regexp{
-	regexp.MustCompile(`Let's Play`),
-	regexp.MustCompile(`#\d+`),
-	regexp.MustCompile(`\((ENDE|Ende)\)`),
-	regexp.MustCompile(`\(?(DEMO|Demo)\)?`),
-	regexp.MustCompile(`\((ANGESPIELT|Angespielt)\)`),
-	regexp.MustCompile(`\d+/\d+`),
-	regexp.MustCompile(`\[[^\[]*\]`),
-	regexp.MustCompile(`\(LPT[^\)]*\)`),
-	regexp.MustCompile(`Folge\s+\d+`),
-	regexp.MustCompile(`S\d+E\d+`),
-	regexp.MustCompile(`•`),
-	regexp.MustCompile(`M\.e\.t\.t\.`),
-	regexp.MustCompile(`Mett`),
-	regexp.MustCompile(`"`),
-	regexp.MustCompile(`Simulator`),
+type cleaner struct {
+	// match holds a regular expression to match.
+	// Will match the whole string if "nil".
+	match *regexp.Regexp
+	// replace holds a replace function.
+	// First match occurence will be replaced with "" if "nil".
+	replace func(in string, match [][]string) string
+}
+
+func (c cleaner) process(s string) string {
+	if c.match == nil && c.replace == nil {
+		return ""
+	}
+
+	var match [][]string
+	if c.match != nil {
+		match = c.match.FindAllStringSubmatch(s, -1)
+		if len(match) == 0 {
+			return s
+		}
+	}
+
+	if c.replace == nil {
+		for _, m := range match {
+			s = strings.ReplaceAll(s, m[0], "")
+		}
+		return s
+	}
+
+	return c.replace(s, match)
+}
+
+var cleanups = []*cleaner{
+	{regexp.MustCompile(`Let's Play`), nil},
+	{regexp.MustCompile(`#\d+`), nil},
+	{regexp.MustCompile(`\((ENDE|Ende)\)`), nil},
+	{regexp.MustCompile(`\(?(DEMO|Demo)\)?`), nil},
+	{regexp.MustCompile(`\((ANGESPIELT|Angespielt)\)`), nil},
+	{regexp.MustCompile(`\d+/\d+`), nil},
+	{regexp.MustCompile(`\[[^\[]*\]`), nil},
+	{regexp.MustCompile(`\(LPT[^\)]*\)`), nil},
+	{regexp.MustCompile(`Folge\s+\d+`), nil},
+	{regexp.MustCompile(`S\d+E\d+`), nil},
+	{regexp.MustCompile(`•`), nil},
+	{regexp.MustCompile(`M\.e\.t\.t\.`), nil},
+	{regexp.MustCompile(`Mett`), nil},
+	{regexp.MustCompile(`"`), nil},
+	{regexp.MustCompile(`Simulator`), nil},
+	{
+		replace: func(in string, match [][]string) string {
+			return gomoji.ReplaceEmojisWith(in, ' ')
+		},
+	},
+	{
+		replace: func(in string, match [][]string) string {
+			return whitespaceRE.ReplaceAllString(in, " ")
+		},
+	},
 }
 
 var whitespaceRE = regexp.MustCompile(`\s+`)
 
 func cleanupVideoMeta(videos []*youtube.PlaylistItem) {
 	for _, video := range videos {
-		for _, regex := range cleanupVideoTitleREs {
-			for _, match := range regex.FindAllString(video.Snippet.Title, -1) {
-				video.Snippet.Title = strings.Replace(video.Snippet.Title, match, "", 1)
-			}
+		for _, c := range cleanups {
+			video.Snippet.Title = c.process(video.Snippet.Title)
 		}
-		video.Snippet.Title = gomoji.ReplaceEmojisWith(video.Snippet.Title, ' ')
-		video.Snippet.Title = whitespaceRE.ReplaceAllString(video.Snippet.Title, " ")
 	}
 }
 
