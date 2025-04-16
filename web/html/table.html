@@ -1,10 +1,10 @@
 {{ define "table"}}
-  <div class="grid grid-cols-2 gap-4">
+  <div class="grid md:grid-cols-2 grid-cols-1 gap-4">
     {{ range . }}
     <div>
       <p>{{ .Name }}</p>
     </div>
-    <div>
+    <div class="md:ml-0 ml-6">
       <ul>
       {{ range .Content }}
         <li>
