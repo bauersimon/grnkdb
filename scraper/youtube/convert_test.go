@@ -141,6 +141,38 @@ func TestConvertVideosToGames(t *testing.T) {
 			},
 		},
 	})
+
+	validate(t, &testCase{
+		Name: "Steam",
+
+		Videos: []*youtube.PlaylistItem{
+			&youtube.PlaylistItem{
+				Snippet: &youtube.PlaylistItemSnippet{
+					Title:       "Der Mann mit dem Hut ist wieder da! 🛕 INDIANA JONES AND THE GREAT CIRCLE #01",
+					PublishedAt: "2025-12-13T19:00:17Z",
+					ResourceId: &youtube.ResourceId{
+						VideoId: "XONCCUxHGxo",
+					},
+					Description: "https://store.steampowered.com/app/2677660",
+				},
+			},
+		},
+		Expected: []*model.Game{
+			&model.Game{
+				Name: "Indiana Jones And The Great Circle",
+				Content: []*model.Content{
+					&model.Content{
+						Source: model.SourceYouTube,
+						Start: func() time.Time {
+							p, _ := time.Parse(time.RFC3339, "2025-12-13T19:00:17Z")
+							return p
+						}(),
+						Link: "https://www.youtube.com/watch?v=XONCCUxHGxo",
+					},
+				},
+			},
+		},
+	})
 }
 
 func TestLongestCommonPrefix(t *testing.T) {
