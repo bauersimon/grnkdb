@@ -32,9 +32,9 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 	logger.Debug("cleaning up video meta")
 	cleanupVideoMeta(videos)
 
-	logger.Debug("extracting unique games")
 	earliestVideoForGame := map[string]*youtube.PlaylistItem{}
-	for _, video := range videos {
+	for i, video := range videos {
+		logger.Debug("extracting game information", "video", video.Snippet.ResourceId.VideoId, "progress", i+1, "total", len(videos))
 		var newGameSpecifier string
 
 		// Try to extract Steam links from description.
@@ -44,6 +44,7 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 				logger.Error("cannot get name from steam", "video", video.Snippet.ResourceId.VideoId, "error", err.Error())
 			} else {
 				newGameSpecifier = strings.ToLower(name)
+				logger.Debug("found game information on steam", "video", video.Snippet.ResourceId.VideoId, "game", name)
 			}
 		}
 

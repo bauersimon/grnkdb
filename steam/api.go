@@ -5,7 +5,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +20,7 @@ type Client struct {
 // NewClient returns a new instance.
 func NewClient() *Client {
 	return &Client{
-		baseUrl: "https://store.steampowered.com/api",
+		baseUrl: "https://store.steampowered.com/api/",
 	}
 }
 
@@ -34,17 +37,39 @@ func (c *Client) GameName(appID string) (game string, err error) {
 		}
 	}()
 
-	url, err := url.JoinPath(c.baseUrl, "appdetails?appids="+appID)
+	url, err := url.JoinPath(c.baseUrl, "appdetails")
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
-	resp, err := (&http.Client{}).Get(url)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	url += "?appids=" + appID
+
+	var resp *http.Response
+	var body []byte
+	if err := retry.Do(func() (err error) {
+		resp, err = (&http.Client{}).Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode == 429 {
+			return errors.Errorf("rate limit reached: %q", string(body))
+		} else if resp.StatusCode != 200 {
+			return errors.Errorf("invalid API reponse (%d): %q", resp.StatusCode, string(body))
+		}
+
+		return nil
+	},
+		retry.Attempts(5),
+		retry.Delay(time.Second*5),
+		retry.RetryIf(func(err error) bool {
+			return err != nil && strings.Contains(err.Error(), "rate limit")
+		}),
+	); err != nil {
 		return "", errors.WithStack(err)
 	}
 

@@ -49,7 +49,10 @@ func TestGameName(t *testing.T) {
 
 		Server: func(t *testing.T) *httptest.Server {
 			return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Truef(t, strings.HasSuffix(r.URL.Path, "appdetails?appids=1234"), "expected suffix \"appdetails?appids=1234\" on %q", r.URL.Path)
+				assert.Truef(t, strings.HasSuffix(r.URL.Path, "appdetails"), "expected suffix \"appdetails\" on %q", r.URL.Path)
+				assert.True(t, r.URL.Query().Has("appids"), "expected \"appids\" query")
+				assert.Equal(t, "1234", r.URL.Query().Get("appids"), "expected \"appids=1234\" query")
+
 				fmt.Fprintln(w, `{"1234":{"success":true,"data":{"name":"foo"}}}`)
 			}))
 		},
@@ -63,7 +66,10 @@ func TestGameName(t *testing.T) {
 
 		Server: func(t *testing.T) *httptest.Server {
 			return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Truef(t, strings.HasSuffix(r.URL.Path, "appdetails?appids=1234"), "expected suffix \"appdetails?appids=1234\" on %q", r.URL.Path)
+				assert.Truef(t, strings.HasSuffix(r.URL.Path, "appdetails"), "expected suffix \"appdetails\" on %q", r.URL.Path)
+				assert.True(t, r.URL.Query().Has("appids"), "expected \"appids\" query")
+				assert.Equal(t, "1234", r.URL.Query().Get("appids"), "expected \"appids=1234\" query")
+
 				fmt.Fprintln(w, `{"1234":{"success":false}}`)
 			}))
 		},
@@ -71,4 +77,31 @@ func TestGameName(t *testing.T) {
 
 		Error: "unknown game ID",
 	})
+
+	{
+		tryCount := 0
+		validate(t, &testCase{
+			Name: "Retry",
+
+			Server: func(t *testing.T) *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Truef(t, strings.HasSuffix(r.URL.Path, "appdetails"), "expected suffix \"appdetails\" on %q", r.URL.Path)
+					assert.True(t, r.URL.Query().Has("appids"), "expected \"appids\" query")
+					assert.Equal(t, "1234", r.URL.Query().Get("appids"), "expected \"appids=1234\" query")
+
+					tryCount++
+					switch tryCount {
+					case 1:
+						w.WriteHeader(429)
+						fmt.Fprintln(w, "too many requests")
+					case 2:
+						fmt.Fprintln(w, `{"1234":{"success":false}}`)
+					}
+				}))
+			},
+			AppID: "1234",
+
+			Error: "unknown game ID",
+		})
+	}
 }
