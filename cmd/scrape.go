@@ -53,6 +53,22 @@ func scrape() (err error) {
 		return errors.WithStack(err)
 	}
 
+	var existingData []*model.Game
+	if _, err := os.Stat(csvDataPath); err == nil {
+		readFile, err := os.Open(csvDataPath)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		existingData, err = model.CSVRead(readFile)
+		closeErr := readFile.Close()
+		if err != nil || closeErr != nil {
+			return goerrors.Join(errors.WithStack(err), errors.WithStack(closeErr))
+		}
+	}
+	if existingData != nil {
+		games = model.MergeGames(games, existingData)
+	}
+
 	file, err := os.Create(csvDataPath)
 	if err != nil {
 		return errors.WithStack(err)
