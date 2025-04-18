@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bauersimon/grnkdb/model"
+	"github.com/bauersimon/grnkdb/steam"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/youtube/v3"
@@ -32,7 +33,7 @@ func TestConvertVideosToGames(t *testing.T) {
 				}
 			}()
 
-			actual, err := convertVideosToGames(logger, tc.Videos)
+			actual, err := convertVideosToGames(logger, steam.NewClient(), tc.Videos)
 			if tc.Error != "" {
 				assert.ErrorContains(t, err, tc.Error)
 			} else {

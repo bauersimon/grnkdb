@@ -8,6 +8,7 @@ import (
 
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper"
+	"github.com/bauersimon/grnkdb/steam"
 	"github.com/pkg/errors"
 )
 
@@ -56,7 +57,7 @@ func (s *Scraper) Scrape() ([]*model.Game, error) {
 	}
 
 	s.logger.Info("converting videos", "videos", len(videos))
-	return convertVideosToGames(s.loggerRoot.With("module", "scraper.youtube.Convert"), videos)
+	return convertVideosToGames(s.loggerRoot.With("module", "scraper.youtube.Convert"), steam.NewClient(), videos)
 }
 
 func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err error) {

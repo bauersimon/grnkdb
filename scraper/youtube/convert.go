@@ -1,20 +1,17 @@
 package youtube
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"maps"
-	"net/http"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/bauersimon/grnkdb/model"
+	"github.com/bauersimon/grnkdb/steam"
 	"github.com/forPelevin/gomoji"
-	"github.com/pkg/errors"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"google.golang.org/api/youtube/v3"
@@ -31,48 +28,7 @@ func init() {
 
 var steamStoreLinkRE = regexp.MustCompile(`steampowered\.com\/app\/(\d+)`)
 
-var steamNameCache = map[string]string{}
-
-func getSteamGameName(appID string) (game string, err error) {
-	if game = steamNameCache[appID]; game != "" {
-		return game, nil
-	}
-	defer func() {
-		if err == nil {
-			steamNameCache[appID] = game
-		}
-	}()
-
-	url := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%s", appID)
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	var apiResponse map[string]struct {
-		Success bool `json:"success"`
-		Data    struct {
-			Name string `json:"name"`
-		} `json:"data"`
-	}
-
-	if err := json.Unmarshal(body, &apiResponse); err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	if appData, exists := apiResponse[appID]; exists && appData.Success {
-		return appData.Data.Name, nil
-	}
-
-	return "", errors.Errorf("unknown game ID %q", appID)
-}
-
-func convertVideosToGames(logger *slog.Logger, videos []*youtube.PlaylistItem) (games []*model.Game, err error) {
+func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos []*youtube.PlaylistItem) (games []*model.Game, err error) {
 	logger.Debug("cleaning up video meta")
 	cleanupVideoMeta(videos)
 
@@ -83,7 +39,7 @@ func convertVideosToGames(logger *slog.Logger, videos []*youtube.PlaylistItem) (
 
 		// Try to extract Steam links from description.
 		if matches := steamStoreLinkRE.FindStringSubmatch(video.Snippet.Description); len(matches) > 0 {
-			name, err := getSteamGameName(matches[1])
+			name, err := steamClient.GameName(matches[1])
 			if err != nil {
 				logger.Error("cannot get name from steam", "video", video.Snippet.ResourceId.VideoId, "error", err.Error())
 			} else {
