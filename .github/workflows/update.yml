@@ -1,0 +1,33 @@
+name: Update Game Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Runs at 00:00 every Sunday
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    if: github.ref == 'refs/heads/master'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: master
+        fetch-depth: 0
+
+    - name: Set up Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Scrape
+      env:
+        KEY_YOUTUBE_API: ${{ secrets.KEY_YOUTUBE_API }}
+      run: nix-shell dev.nix --run "go run main.go scrape --youtube-api-key $KEY_YOUTUBE_API --youtube-page-limit 1 --youtube-page-results 30"
+
+    - name: Commit updated data
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: Update data
+        file_pattern: './public/data.csv'
