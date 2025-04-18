@@ -20,7 +20,7 @@ import (
 var commonWords = map[string]bool{}
 
 func init() {
-	words := "alles,der,die,das,ein,the"
+	words := "alles,der,die,das,ein,the,gronkh"
 	for _, word := range strings.Split(words, ",") {
 		commonWords[word] = true
 	}
@@ -171,6 +171,8 @@ var cleanups = []*cleaner{
 	{regexp.MustCompile(`Mett`), nil},
 	{regexp.MustCompile(`"`), nil},
 	{regexp.MustCompile(`Simulator`), nil},
+	{regexp.MustCompile(`★`), nil},
+	{regexp.MustCompile(`\((Preview|PREVIEW)\)`), nil},
 	{
 		replace: func(in string, match [][]string) string {
 			return gomoji.ReplaceEmojisWith(in, ' ')

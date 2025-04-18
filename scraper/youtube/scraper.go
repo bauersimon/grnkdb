@@ -9,6 +9,7 @@ import (
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper"
 	"github.com/bauersimon/grnkdb/steam"
+	"github.com/bauersimon/grnkdb/util"
 	"github.com/pkg/errors"
 )
 
@@ -19,6 +20,7 @@ type Scraper struct {
 	pageLimit   uint
 	pageResults uint
 	channelIDs  []string
+	windowSize  uint
 
 	logger     *slog.Logger
 	loggerRoot *slog.Logger
@@ -27,7 +29,7 @@ type Scraper struct {
 var _ scraper.Interface = (*Scraper)(nil)
 
 // NewScraper initializes a YouTube scraper.
-func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults uint, channelIDs []string) (*Scraper, error) {
+func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults uint, windowSize uint, channelIDs []string) (*Scraper, error) {
 	service, err := initializeService(context.Background(), apiKey)
 	if err != nil {
 		return nil, err
@@ -39,6 +41,7 @@ func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults 
 		pageLimit:   pageLimit,
 		pageResults: pageResults,
 		channelIDs:  channelIDs,
+		windowSize:  windowSize,
 
 		logger:     logger.With("module", "scraper.youtube.Scraper"),
 		loggerRoot: logger,
@@ -57,7 +60,18 @@ func (s *Scraper) Scrape() ([]*model.Game, error) {
 	}
 
 	s.logger.Info("converting videos", "videos", len(videos))
-	return convertVideosToGames(s.loggerRoot.With("module", "scraper.youtube.Convert"), steam.NewClient(), videos)
+	var games []*model.Game
+	steamClient := steam.NewClient()
+	logger := s.loggerRoot.With("module", "scraper.youtube.Convert")
+	for window := range util.SlidingWindowed(videos, s.windowSize, max(uint(0), s.windowSize/2)) {
+		g, err := convertVideosToGames(logger, steamClient, window)
+		if err != nil {
+			return nil, err
+		}
+		games = model.MergeGames(games, g)
+	}
+
+	return games, nil
 }
 
 func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err error) {
