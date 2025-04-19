@@ -173,6 +173,7 @@ var cleanups = []*cleaner{
 	{regexp.MustCompile(`Simulator`), nil},
 	{regexp.MustCompile(`★`), nil},
 	{regexp.MustCompile(`\((Preview|PREVIEW)\)`), nil},
+	{regexp.MustCompile(`[^\p{L}\p{N}\s\:]+`), nil},
 	{
 		replace: func(in string, match [][]string) string {
 			return gomoji.ReplaceEmojisWith(in, ' ')
