@@ -128,7 +128,7 @@ type cleaner struct {
 	// Will match the whole string if "nil".
 	match *regexp.Regexp
 	// replace holds a replace function.
-	// First match occurence will be replaced with "" if "nil".
+	// Matches will be replaced with "" if "nil".
 	replace func(in string, match [][]string) string
 }
 
@@ -156,23 +156,23 @@ func (c cleaner) process(s string) string {
 }
 
 var cleanups = []*cleaner{
-	{regexp.MustCompile(`Let's Play`), nil},
+	// Common tags.
+	{regexp.MustCompile(`(?i)Let's (Play|Test)`), nil},
+	{regexp.MustCompile(`(?i)\(?Ende\)?`), nil},
+	{regexp.MustCompile(`(?i)\(?Demo\)?`), nil},
+	{regexp.MustCompile(`(?i)\(?Angespielt\)?`), nil},
+	{regexp.MustCompile(`(?i)\(?Preview\)?`), nil},
+	{regexp.MustCompile(`(?i)\(LPT[^\)]*\)`), nil},
+	{regexp.MustCompile(`M\.?e\.?t\.?t\.?`), nil},
+	// Episode numbers.
 	{regexp.MustCompile(`#\d+`), nil},
-	{regexp.MustCompile(`\((ENDE|Ende)\)`), nil},
-	{regexp.MustCompile(`\(?(DEMO|Demo)\)?`), nil},
-	{regexp.MustCompile(`\((ANGESPIELT|Angespielt)\)`), nil},
+	{regexp.MustCompile(`\D\d\d\d\:`), nil},
 	{regexp.MustCompile(`\d+/\d+`), nil},
-	{regexp.MustCompile(`\[[^\[]*\]`), nil},
-	{regexp.MustCompile(`\(LPT[^\)]*\)`), nil},
 	{regexp.MustCompile(`Folge\s+\d+`), nil},
 	{regexp.MustCompile(`S\d+E\d+`), nil},
-	{regexp.MustCompile(`•`), nil},
-	{regexp.MustCompile(`M\.e\.t\.t\.`), nil},
-	{regexp.MustCompile(`Mett`), nil},
-	{regexp.MustCompile(`"`), nil},
-	{regexp.MustCompile(`Simulator`), nil},
-	{regexp.MustCompile(`★`), nil},
-	{regexp.MustCompile(`\((Preview|PREVIEW)\)`), nil},
+	// Anything in squared brackets.
+	{regexp.MustCompile(`\[[^\[]*\]`), nil},
+	// All non-character or non-digit characters.
 	{regexp.MustCompile(`[^\p{L}\p{N}\s\:]+`), nil},
 	{
 		replace: func(in string, match [][]string) string {

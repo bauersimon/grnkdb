@@ -37,7 +37,7 @@ func init() {
 	scrapeCmd.MarkFlagRequired("youtube-api-key")
 	scrapeCmd.Flags().UintVar(&youtubePageResults, "youtube-page-results", 50, "YouTube results per request")
 	scrapeCmd.Flags().UintVar(&youtubePageLimit, "youtube-page-limit", 0, "YouTube page limit (disabled: 0)")
-	scrapeCmd.Flags().UintVar(&youtubeWindowSize, "youtube-window-size", 25, "YouTube conversion window size")
+	scrapeCmd.Flags().UintVar(&youtubeWindowSize, "youtube-window-size", 100, "YouTube conversion window size")
 	scrapeCmd.Flags().StringSliceVar(&youtubeChannelIDs, "youtube-channel-ids", []string{"UCYJ61XIK64sp6ZFFS8sctxw"}, "comma-separated list of channel IDs to scrape")
 }
 
