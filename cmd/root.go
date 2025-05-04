@@ -30,7 +30,8 @@ var (
 					return errors.WithStack(err)
 				}
 				slog.SetDefault(slog.New(slog.NewJSONHandler(logFile, &slog.HandlerOptions{
-					Level: level,
+					AddSource: true,
+					Level:     level,
 				})))
 			}
 			slog.SetLogLoggerLevel(level)

@@ -22,8 +22,7 @@ type Scraper struct {
 	channelIDs  []string
 	windowSize  uint
 
-	logger     *slog.Logger
-	loggerRoot *slog.Logger
+	logger *slog.Logger
 }
 
 var _ scraper.Interface = (*Scraper)(nil)
@@ -43,8 +42,7 @@ func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults 
 		channelIDs:  channelIDs,
 		windowSize:  windowSize,
 
-		logger:     logger.With("module", "scraper.youtube.Scraper"),
-		loggerRoot: logger,
+		logger: logger,
 	}, nil
 }
 
@@ -62,9 +60,8 @@ func (s *Scraper) Scrape() ([]*model.Game, error) {
 	s.logger.Info("converting videos", "videos", len(videos))
 	var games []*model.Game
 	steamClient := steam.NewClient()
-	logger := s.loggerRoot.With("module", "scraper.youtube.Convert")
 	for window := range util.SlidingWindowed(videos, s.windowSize, max(uint(0), s.windowSize/2)) {
-		g, err := convertVideosToGames(logger, steamClient, window)
+		g, err := convertVideosToGames(s.logger, steamClient, window)
 		if err != nil {
 			return nil, err
 		}
