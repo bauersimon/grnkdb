@@ -20,28 +20,28 @@ var (
 		Use:   "web",
 		Short: "Generate website",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return web()
+			gameDataPath, _ := cmd.Flags().GetString("data-path")
+			templateDataPath, _ := cmd.Flags().GetString("template-path")
+			htmlDataPath, _ := cmd.Flags().GetString("html-path")
+			loopGeneration, _ := cmd.Flags().GetBool("live")
+
+			return web(gameDataPath, templateDataPath, htmlDataPath, loopGeneration)
 		},
 	}
-
-	gameDataPath     string
-	templateDataPath string
-	htmlDataPath     string
-	loopGeneration   bool
 )
 
 func init() {
 	rootCmd.AddCommand(webCmd)
 
-	webCmd.Flags().StringVar(&gameDataPath, "data-path", "./public/data.csv", "data input path")
-	webCmd.Flags().StringVar(&templateDataPath, "template-path", "./web/html", "template path")
-	webCmd.Flags().StringVar(&htmlDataPath, "html-path", "./public", "html output path")
-	webCmd.Flags().BoolVarP(&loopGeneration, "live", "l", false, "re-generate periodically")
+	webCmd.Flags().String("data-path", "./public/data.csv", "data input path")
+	webCmd.Flags().String("template-path", "./web/html", "template path")
+	webCmd.Flags().String("html-path", "./public", "html output path")
+	webCmd.Flags().BoolP("live", "l", false, "re-generate periodically")
 }
 
-func web() (err error) {
+func web(gameDataPath, templateDataPath, htmlDataPath string, loopGeneration bool) (err error) {
 	for {
-		err = webLoop()
+		err = webLoop(gameDataPath, templateDataPath, htmlDataPath)
 		if !loopGeneration {
 			break
 		} else {
@@ -55,7 +55,7 @@ func web() (err error) {
 	return err
 }
 
-func webLoop() (err error) {
+func webLoop(gameDataPath, templateDataPath, htmlDataPath string) (err error) {
 	t, err := template.ParseGlob(filepath.Join(templateDataPath, "*.html"))
 	if err != nil {
 		return errors.WithStack(err)

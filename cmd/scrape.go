@@ -17,31 +17,31 @@ var (
 		Use:   "scrape",
 		Short: "Scrape the internet",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return scrape()
+			csvDataPath, _ := cmd.Flags().GetString("data-path")
+			youtubeApiKey, _ := cmd.Flags().GetString("youtube-api-key")
+			youtubePageResults, _ := cmd.Flags().GetUint("youtube-page-results")
+			youtubePageLimit, _ := cmd.Flags().GetUint("youtube-page-limit")
+			youtubeWindowSize, _ := cmd.Flags().GetUint("youtube-window-size")
+			youtubeChannelIDs, _ := cmd.Flags().GetStringSlice("youtube-channel-ids")
+
+			return scrape(csvDataPath, youtubeApiKey, youtubePageResults, youtubePageLimit, youtubeWindowSize, youtubeChannelIDs)
 		},
 	}
-
-	csvDataPath        string
-	youtubeApiKey      string
-	youtubePageResults uint
-	youtubePageLimit   uint
-	youtubeWindowSize  uint
-	youtubeChannelIDs  []string
 )
 
 func init() {
 	rootCmd.AddCommand(scrapeCmd)
 
-	scrapeCmd.Flags().StringVar(&csvDataPath, "data-path", "./public/data.csv", "data output path")
-	scrapeCmd.Flags().StringVar(&youtubeApiKey, "youtube-api-key", "", "YouTube API key")
+	scrapeCmd.Flags().String("data-path", "./public/data.csv", "data output path")
+	scrapeCmd.Flags().String("youtube-api-key", "", "YouTube API key")
 	_ = scrapeCmd.MarkFlagRequired("youtube-api-key")
-	scrapeCmd.Flags().UintVar(&youtubePageResults, "youtube-page-results", 50, "YouTube results per request")
-	scrapeCmd.Flags().UintVar(&youtubePageLimit, "youtube-page-limit", 0, "YouTube page limit (disabled: 0)")
-	scrapeCmd.Flags().UintVar(&youtubeWindowSize, "youtube-window-size", 100, "YouTube conversion window size")
-	scrapeCmd.Flags().StringSliceVar(&youtubeChannelIDs, "youtube-channel-ids", []string{"UCYJ61XIK64sp6ZFFS8sctxw"}, "comma-separated list of channel IDs to scrape")
+	scrapeCmd.Flags().Uint("youtube-page-results", 50, "YouTube results per request")
+	scrapeCmd.Flags().Uint("youtube-page-limit", 0, "YouTube page limit (disabled: 0)")
+	scrapeCmd.Flags().Uint("youtube-window-size", 100, "YouTube conversion window size")
+	scrapeCmd.Flags().StringSlice("youtube-channel-ids", []string{"UCYJ61XIK64sp6ZFFS8sctxw"}, "comma-separated list of channel IDs to scrape")
 }
 
-func scrape() (err error) {
+func scrape(csvDataPath, youtubeApiKey string, youtubePageResults, youtubePageLimit, youtubeWindowSize uint, youtubeChannelIDs []string) (err error) {
 	youtube, err := youtube.NewScraper(slog.Default(), youtubeApiKey, youtubePageLimit, youtubeWindowSize, youtubePageResults, youtubeChannelIDs)
 	if err != nil {
 		return err

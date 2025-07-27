@@ -13,6 +13,10 @@ var (
 		Use:   "grnkdb",
 		Short: "Gronkh database scraping.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			quiet, _ := cmd.Flags().GetBool("quiet")
+			logPath, _ := cmd.Flags().GetString("log-path")
+
 			level := slog.LevelInfo
 			if verbose {
 				level = slog.LevelDebug
@@ -39,17 +43,13 @@ var (
 			return nil
 		},
 	}
-
-	verbose bool
-	quiet   bool
-	logPath string
 )
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose logging")
-	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "log only errors")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose logging")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "log only errors")
 	rootCmd.MarkFlagsMutuallyExclusive("verbose", "quiet")
-	rootCmd.PersistentFlags().StringVar(&logPath, "log-path", "", "JSON log file path")
+	rootCmd.PersistentFlags().String("log-path", "", "JSON log file path")
 }
 
 // Execute executes the root command.
