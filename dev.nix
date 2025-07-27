@@ -2,11 +2,9 @@
 
 pkgs.mkShell {
   buildInputs = with pkgs; [
-    # Go compiler and tools
+    # Essential tools only
     go
-    gopls
-    gotools
-    delve
+    just
     tailwindcss_4
   ];
 

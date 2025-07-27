@@ -34,7 +34,7 @@ func init() {
 
 	scrapeCmd.Flags().StringVar(&csvDataPath, "data-path", "./public/data.csv", "data output path")
 	scrapeCmd.Flags().StringVar(&youtubeApiKey, "youtube-api-key", "", "YouTube API key")
-	scrapeCmd.MarkFlagRequired("youtube-api-key")
+	_ = scrapeCmd.MarkFlagRequired("youtube-api-key")
 	scrapeCmd.Flags().UintVar(&youtubePageResults, "youtube-page-results", 50, "YouTube results per request")
 	scrapeCmd.Flags().UintVar(&youtubePageLimit, "youtube-page-limit", 0, "YouTube page limit (disabled: 0)")
 	scrapeCmd.Flags().UintVar(&youtubeWindowSize, "youtube-window-size", 100, "YouTube conversion window size")
