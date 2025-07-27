@@ -118,13 +118,3 @@ func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err 
 
 	return videos, nil
 }
-
-func parseGames(items []*youtube.PlaylistItem) (games []*model.Game) {
-	for _, item := range items {
-		games = append(games, &model.Game{
-			Name: item.Snippet.Title,
-		})
-	}
-
-	return games
-}

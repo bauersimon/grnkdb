@@ -53,7 +53,7 @@ func TestGameName(t *testing.T) {
 				assert.True(t, r.URL.Query().Has("appids"), "expected \"appids\" query")
 				assert.Equal(t, "1234", r.URL.Query().Get("appids"), "expected \"appids=1234\" query")
 
-				fmt.Fprintln(w, `{"1234":{"success":true,"data":{"name":"foo"}}}`)
+				_, _ = fmt.Fprintln(w, `{"1234":{"success":true,"data":{"name":"foo"}}}`)
 			}))
 		},
 		AppID: "1234",
@@ -70,7 +70,7 @@ func TestGameName(t *testing.T) {
 				assert.True(t, r.URL.Query().Has("appids"), "expected \"appids\" query")
 				assert.Equal(t, "1234", r.URL.Query().Get("appids"), "expected \"appids=1234\" query")
 
-				fmt.Fprintln(w, `{"1234":{"success":false}}`)
+				_, _ = fmt.Fprintln(w, `{"1234":{"success":false}}`)
 			}))
 		},
 		AppID: "1234",
@@ -93,9 +93,9 @@ func TestGameName(t *testing.T) {
 					switch tryCount {
 					case 1:
 						w.WriteHeader(429)
-						fmt.Fprintln(w, "too many requests")
+						_, _ = fmt.Fprintln(w, "too many requests")
 					case 2:
-						fmt.Fprintln(w, `{"1234":{"success":false}}`)
+						_, _ = fmt.Fprintln(w, `{"1234":{"success":false}}`)
 					}
 				}))
 			},
