@@ -1,20 +1,17 @@
 package youtube
 
 import (
-	"fmt"
 	"log/slog"
 	"maps"
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/steam"
 	"github.com/forPelevin/gomoji"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"google.golang.org/api/youtube/v3"
 )
 
 var commonWords = map[string]bool{}
@@ -28,23 +25,37 @@ func init() {
 
 var steamStoreLinkRE = regexp.MustCompile(`steampowered\.com\/app\/(\d+)`)
 
-func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos []*youtube.PlaylistItem) (games []*model.Game, err error) {
-	logger.Debug("cleaning up video meta")
-	cleanupVideoMeta(videos)
-
-	earliestVideoForGame := map[string]*youtube.PlaylistItem{}
+// convertVideosToGames converts model.Video structs to games
+func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos []*model.Video) (games []*model.Game, err error) {
+	// Create cleaned copies of videos for processing without modifying originals
+	cleanedVideos := make([]*model.Video, len(videos))
 	for i, video := range videos {
-		logger.Debug("extracting game information", "video", video.Snippet.ResourceId.VideoId, "progress", i+1, "total", len(videos))
+		cleanedVideos[i] = &model.Video{
+			VideoID:     video.VideoID,
+			Title:       video.Title,
+			Description: video.Description,
+			Link:        video.Link,
+			PublishedAt: video.PublishedAt,
+			ChannelID:   video.ChannelID,
+		}
+	}
+
+	logger.Debug("cleaning up video meta")
+	cleanupVideoMeta(cleanedVideos)
+
+	earliestVideoForGame := map[string]*model.Video{}
+	for i, video := range cleanedVideos {
+		logger.Debug("extracting game information", "video", video.VideoID, "progress", i+1, "total", len(cleanedVideos))
 		var newGameSpecifier string
 
 		// Try to extract Steam links from description.
-		if matches := steamStoreLinkRE.FindStringSubmatch(video.Snippet.Description); len(matches) > 0 {
+		if matches := steamStoreLinkRE.FindStringSubmatch(video.Description); len(matches) > 0 {
 			name, err := steamClient.GameName(matches[1])
 			if err != nil {
-				logger.Error("cannot get name from steam", "video", video.Snippet.ResourceId.VideoId, "error", err.Error())
+				logger.Error("cannot get name from steam", "video", video.VideoID, "error", err.Error())
 			} else {
 				newGameSpecifier = strings.ToLower(name)
-				logger.Debug("found game information on steam", "video", video.Snippet.ResourceId.VideoId, "game", name)
+				logger.Debug("found game information on steam", "video", video.VideoID, "game", name)
 			}
 		}
 
@@ -53,11 +64,11 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 		if newGameSpecifier == "" {
 			for preSuffix := range maps.Keys(earliestVideoForGame) {
 				newPrefix := longestCommonPrefix(
-					strings.ToLower(video.Snippet.Title),
+					strings.ToLower(video.Title),
 					strings.ToLower(preSuffix),
 				)
 				newSuffix := longestCommonSuffix(
-					strings.ToLower(video.Snippet.Title),
+					strings.ToLower(video.Title),
 					strings.ToLower(preSuffix),
 				)
 				if commonWords[strings.ToLower(strings.TrimSpace(newPrefix))] {
@@ -95,22 +106,21 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 			} else {
 				earliestVideoForGame[newGameSpecifier] = video
 			}
-			logger.Debug("match", "video", video.Snippet.Title)
+			logger.Debug("match", "video", video.Title)
 		} else {
-			earliestVideoForGame[video.Snippet.Title] = video
-			logger.Debug("no match", "video", video.Snippet.Title)
+			earliestVideoForGame[video.Title] = video
+			logger.Debug("no match", "video", video.Title)
 		}
 	}
 
 	caser := cases.Title(language.German)
 	for title, video := range earliestVideoForGame {
-		published, _ := time.Parse(time.RFC3339, video.Snippet.PublishedAt)
 		games = append(games, &model.Game{
 			Name: caser.String(strings.TrimSpace(strings.Trim(title, "-:\" \t"))),
 			Content: []*model.Content{
-				&model.Content{
-					Link:   fmt.Sprintf("https://www.youtube.com/watch?v=%s", video.Snippet.ResourceId.VideoId),
-					Start:  published,
+				{
+					Link:   video.Link,
+					Start:  video.PublishedAt,
 					Source: model.SourceYouTube,
 				},
 			},
@@ -188,28 +198,18 @@ var cleanups = []*cleaner{
 
 var whitespaceRE = regexp.MustCompile(`\s+`)
 
-func cleanupVideoMeta(videos []*youtube.PlaylistItem) {
+func cleanupVideoMeta(videos []*model.Video) {
 	for _, video := range videos {
 		for _, c := range cleanups {
-			video.Snippet.Title = c.process(video.Snippet.Title)
+			video.Title = c.process(video.Title)
 		}
 	}
 }
 
-func compareVideos(a, b *youtube.PlaylistItem) int {
-	dateA, errA := time.Parse(time.RFC3339, a.Snippet.PublishedAt)
-	dateB, errB := time.Parse(time.RFC3339, b.Snippet.PublishedAt)
-	if errA != nil && errB != nil {
-		return 0
-	} else if errA != nil {
+func compareVideos(a, b *model.Video) int {
+	if a.PublishedAt.Before(b.PublishedAt) {
 		return -1
-	} else if errB != nil {
-		return +1
-	}
-
-	if dateA.Before(dateB) {
-		return -1
-	} else if dateB.Before(dateA) {
+	} else if b.PublishedAt.Before(a.PublishedAt) {
 		return +1
 	}
 

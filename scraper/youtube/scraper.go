@@ -2,7 +2,9 @@ package youtube
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"time"
 
 	"google.golang.org/api/youtube/v3"
 
@@ -19,7 +21,6 @@ type Scraper struct {
 
 	pageLimit   uint
 	pageResults uint
-	channelIDs  []string
 	windowSize  uint
 
 	logger *slog.Logger
@@ -28,7 +29,7 @@ type Scraper struct {
 var _ scraper.Interface = (*Scraper)(nil)
 
 // NewScraper initializes a YouTube scraper.
-func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults uint, windowSize uint, channelIDs []string) (*Scraper, error) {
+func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults uint, windowSize uint) (*Scraper, error) {
 	service, err := initializeService(context.Background(), apiKey)
 	if err != nil {
 		return nil, err
@@ -39,25 +40,20 @@ func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults 
 
 		pageLimit:   pageLimit,
 		pageResults: pageResults,
-		channelIDs:  channelIDs,
 		windowSize:  windowSize,
 
 		logger: logger,
 	}, nil
 }
 
-// Scrape extracts game information.
-func (s *Scraper) Scrape() ([]*model.Game, error) {
-	var videos []*youtube.PlaylistItem
-	for _, channelID := range s.channelIDs {
-		v, err := s.scrapeChannel(channelID)
-		if err != nil {
-			return nil, err
-		}
-		videos = append(videos, v...)
+// Scrape extracts game information from the specified YouTube channels.
+func (s *Scraper) Scrape(channelIDs []string) ([]*model.Game, error) {
+	videos, err := s.Videos(channelIDs)
+	if err != nil {
+		return nil, err
 	}
 
-	s.logger.Info("converting videos", "videos", len(videos))
+	s.logger.Info("converting videos to games", "videos", len(videos))
 	var games []*model.Game
 	steamClient := steam.NewClient()
 	for window := range util.SlidingWindowed(videos, s.windowSize, max(uint(0), s.windowSize/2)) {
@@ -69,6 +65,47 @@ func (s *Scraper) Scrape() ([]*model.Game, error) {
 	}
 
 	return games, nil
+}
+
+// Videos extracts video metadata from the specified YouTube channels.
+func (s *Scraper) Videos(channelIDs []string) ([]*model.Video, error) {
+	var playlistItems []*youtube.PlaylistItem
+	for _, channelID := range channelIDs {
+		items, err := s.scrapeChannel(channelID)
+		if err != nil {
+			return nil, err
+		}
+		playlistItems = append(playlistItems, items...)
+	}
+
+	s.logger.Info("converting playlist items to videos", "items", len(playlistItems))
+	videos := make([]*model.Video, 0, len(playlistItems))
+	for _, item := range playlistItems {
+		video, err := convertPlaylistItemToVideo(item)
+		if err != nil {
+			s.logger.Warn("failed to convert playlist item to video", "videoId", item.Snippet.ResourceId.VideoId, "error", err)
+			continue
+		}
+		videos = append(videos, video)
+	}
+
+	return videos, nil
+}
+
+func convertPlaylistItemToVideo(item *youtube.PlaylistItem) (*model.Video, error) {
+	publishedAt, err := time.Parse(time.RFC3339, item.Snippet.PublishedAt)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse published date: %s", item.Snippet.PublishedAt)
+	}
+
+	return &model.Video{
+		VideoID:     item.Snippet.ResourceId.VideoId,
+		Title:       item.Snippet.Title,
+		Description: item.Snippet.Description,
+		Link:        fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.Snippet.ResourceId.VideoId),
+		PublishedAt: publishedAt,
+		ChannelID:   item.Snippet.ChannelId,
+	}, nil
 }
 
 func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err error) {

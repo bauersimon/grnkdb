@@ -42,11 +42,11 @@ func init() {
 }
 
 func scrape(csvDataPath, youtubeApiKey string, youtubePageResults, youtubePageLimit, youtubeWindowSize uint, youtubeChannelIDs []string) (err error) {
-	youtube, err := youtube.NewScraper(slog.Default(), youtubeApiKey, youtubePageLimit, youtubeWindowSize, youtubePageResults, youtubeChannelIDs)
+	youtube, err := youtube.NewScraper(slog.Default(), youtubeApiKey, youtubePageLimit, youtubePageResults, youtubeWindowSize)
 	if err != nil {
 		return err
 	}
-	games, err := youtube.Scrape()
+	games, err := youtube.Scrape(youtubeChannelIDs)
 	if err != nil {
 		return err
 	}

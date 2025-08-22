@@ -10,14 +10,13 @@ import (
 	"github.com/bauersimon/grnkdb/steam"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/api/youtube/v3"
 )
 
 func TestConvertVideosToGames(t *testing.T) {
 	type testCase struct {
 		Name string
 
-		Videos []*youtube.PlaylistItem
+		Videos []*model.Video
 
 		Expected []*model.Game
 		Error    string
@@ -46,33 +45,24 @@ func TestConvertVideosToGames(t *testing.T) {
 	validate(t, &testCase{
 		Name: "Prefix",
 
-		Videos: []*youtube.PlaylistItem{
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Let's Play Minecraft #001 [Deutsch] [HD] - Alles auf Anfang",
-					PublishedAt: "2010-10-19T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "DM52HxaLK-Y",
-					},
-				},
+		Videos: []*model.Video{
+			{
+				Title:       "Let's Play Minecraft #001 [Deutsch] [HD] - Alles auf Anfang",
+				PublishedAt: time.Date(2010, 10, 19, 19, 0, 17, 0, time.UTC),
+				VideoID:     "DM52HxaLK-Y",
+				Link:        "https://www.youtube.com/watch?v=DM52HxaLK-Y",
 			},
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Let's Play Minecraft #002 [Deutsch] [HD] - Inselkoller & Nachtwache",
-					PublishedAt: "2010-10-20T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "tAaCTvht5Co",
-					},
-				},
+			{
+				Title:       "Let's Play Minecraft #002 [Deutsch] [HD] - Inselkoller & Nachtwache",
+				PublishedAt: time.Date(2010, 10, 20, 19, 0, 17, 0, time.UTC),
+				VideoID:     "tAaCTvht5Co",
+				Link:        "https://www.youtube.com/watch?v=tAaCTvht5Co",
 			},
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Let's Play Minecraft #003 [Deutsch] [HD] - Majestätische Landschaften",
-					PublishedAt: "2010-10-21T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "ednqMErMOsM",
-					},
-				},
+			{
+				Title:       "Let's Play Minecraft #003 [Deutsch] [HD] - Majestätische Landschaften",
+				PublishedAt: time.Date(2010, 10, 21, 19, 0, 17, 0, time.UTC),
+				VideoID:     "ednqMErMOsM",
+				Link:        "https://www.youtube.com/watch?v=ednqMErMOsM",
 			},
 		},
 
@@ -82,11 +72,8 @@ func TestConvertVideosToGames(t *testing.T) {
 				Content: []*model.Content{
 					&model.Content{
 						Source: model.SourceYouTube,
-						Start: func() time.Time {
-							p, _ := time.Parse(time.RFC3339, "2010-10-19T19:00:17Z")
-							return p
-						}(),
-						Link: "https://www.youtube.com/watch?v=DM52HxaLK-Y",
+						Start:  time.Date(2010, 10, 19, 19, 0, 17, 0, time.UTC),
+						Link:   "https://www.youtube.com/watch?v=DM52HxaLK-Y",
 					},
 				},
 			},
@@ -96,33 +83,24 @@ func TestConvertVideosToGames(t *testing.T) {
 	validate(t, &testCase{
 		Name: "Suffix",
 
-		Videos: []*youtube.PlaylistItem{
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Der Mann mit dem Hut ist wieder da! 🛕 INDIANA JONES AND THE GREAT CIRCLE #01",
-					PublishedAt: "2025-12-13T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "XONCCUxHGxo",
-					},
-				},
+		Videos: []*model.Video{
+			{
+				Title:       "Der Mann mit dem Hut ist wieder da! 🛕 INDIANA JONES AND THE GREAT CIRCLE #01",
+				PublishedAt: time.Date(2025, 12, 13, 19, 0, 17, 0, time.UTC),
+				VideoID:     "XONCCUxHGxo",
+				Link:        "https://www.youtube.com/watch?v=XONCCUxHGxo",
 			},
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Schwarze Hemden, niedrige Lebenserwartung 🛕 INDIANA JONES AND THE GREAT CIRCLE #02",
-					PublishedAt: "2025-12-14T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "wVsDQx0SY1M",
-					},
-				},
+			{
+				Title:       "Schwarze Hemden, niedrige Lebenserwartung 🛕 INDIANA JONES AND THE GREAT CIRCLE #02",
+				PublishedAt: time.Date(2025, 12, 14, 19, 0, 17, 0, time.UTC),
+				VideoID:     "wVsDQx0SY1M",
+				Link:        "https://www.youtube.com/watch?v=wVsDQx0SY1M",
 			},
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Indiana Jones und das Geheimnis der Schwerkraft 🛕 INDIANA JONES AND THE GREAT CIRCLE #03",
-					PublishedAt: "2025-12-15T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "9Ack9uoQRIM",
-					},
-				},
+			{
+				Title:       "Indiana Jones und das Geheimnis der Schwerkraft 🛕 INDIANA JONES AND THE GREAT CIRCLE #03",
+				PublishedAt: time.Date(2025, 12, 15, 19, 0, 17, 0, time.UTC),
+				VideoID:     "9Ack9uoQRIM",
+				Link:        "https://www.youtube.com/watch?v=9Ack9uoQRIM",
 			},
 		},
 
@@ -132,11 +110,8 @@ func TestConvertVideosToGames(t *testing.T) {
 				Content: []*model.Content{
 					&model.Content{
 						Source: model.SourceYouTube,
-						Start: func() time.Time {
-							p, _ := time.Parse(time.RFC3339, "2025-12-13T19:00:17Z")
-							return p
-						}(),
-						Link: "https://www.youtube.com/watch?v=XONCCUxHGxo",
+						Start:  time.Date(2025, 12, 13, 19, 0, 17, 0, time.UTC),
+						Link:   "https://www.youtube.com/watch?v=XONCCUxHGxo",
 					},
 				},
 			},
@@ -146,16 +121,13 @@ func TestConvertVideosToGames(t *testing.T) {
 	validate(t, &testCase{
 		Name: "Steam",
 
-		Videos: []*youtube.PlaylistItem{
-			&youtube.PlaylistItem{
-				Snippet: &youtube.PlaylistItemSnippet{
-					Title:       "Der Mann mit dem Hut ist wieder da! 🛕 INDIANA JONES AND THE GREAT CIRCLE #01",
-					PublishedAt: "2025-12-13T19:00:17Z",
-					ResourceId: &youtube.ResourceId{
-						VideoId: "XONCCUxHGxo",
-					},
-					Description: "https://store.steampowered.com/app/2677660",
-				},
+		Videos: []*model.Video{
+			{
+				Title:       "Der Mann mit dem Hut ist wieder da! 🛕 INDIANA JONES AND THE GREAT CIRCLE #01",
+				PublishedAt: time.Date(2025, 12, 13, 19, 0, 17, 0, time.UTC),
+				VideoID:     "XONCCUxHGxo",
+				Link:        "https://www.youtube.com/watch?v=XONCCUxHGxo",
+				Description: "https://store.steampowered.com/app/2677660",
 			},
 		},
 		Expected: []*model.Game{
@@ -164,11 +136,8 @@ func TestConvertVideosToGames(t *testing.T) {
 				Content: []*model.Content{
 					&model.Content{
 						Source: model.SourceYouTube,
-						Start: func() time.Time {
-							p, _ := time.Parse(time.RFC3339, "2025-12-13T19:00:17Z")
-							return p
-						}(),
-						Link: "https://www.youtube.com/watch?v=XONCCUxHGxo",
+						Start:  time.Date(2025, 12, 13, 19, 0, 17, 0, time.UTC),
+						Link:   "https://www.youtube.com/watch?v=XONCCUxHGxo",
 					},
 				},
 			},
