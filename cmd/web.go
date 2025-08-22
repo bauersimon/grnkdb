@@ -33,7 +33,7 @@ var (
 func init() {
 	rootCmd.AddCommand(webCmd)
 
-	webCmd.Flags().String("data-path", "./public/data.csv", "data input path")
+	webCmd.Flags().String("data-path", "./public/data.json", "data input path")
 	webCmd.Flags().String("template-path", "./web/html", "template path")
 	webCmd.Flags().String("html-path", "./public", "html output path")
 	webCmd.Flags().BoolP("live", "l", false, "re-generate periodically")
@@ -76,7 +76,7 @@ func webLoop(gameDataPath, templateDataPath, htmlDataPath string) (err error) {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	games, err := model.CSVRead(bytes.NewBuffer(data))
+	games, err := model.JSONRead(bytes.NewBuffer(data))
 	if err != nil {
 		return errors.WithStack(err)
 	}

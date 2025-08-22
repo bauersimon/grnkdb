@@ -10,34 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCSVWrite(t *testing.T) {
+func TestJSONWrite(t *testing.T) {
 	type testCase struct {
 		Name string
 
-		KnownSourceTypes []SourceType
-		Games            []*Game
+		Games []*Game
 
-		Expected []string
-		Error    string
+		Expected string
 	}
 
 	validate := func(t *testing.T, tc *testCase) {
 		t.Run(tc.Name, func(t *testing.T) {
 			var writer bytes.Buffer
-			err := internalCSVWrite(&writer, tc.Games, tc.KnownSourceTypes)
-			if tc.Error != "" {
-				assert.ErrorContains(t, err, tc.Error)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, strings.Join(tc.Expected, "\n")+"\n", writer.String())
-			}
+			err := JSONWrite(&writer, tc.Games)
+			require.NoError(t, err)
+			assert.JSONEq(t, tc.Expected, writer.String())
 		})
 	}
 
 	validate(t, &testCase{
 		Name: "Single Game",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube")},
 		Games: []*Game{
 			&Game{
 				Name: "Minecraft",
@@ -51,16 +44,23 @@ func TestCSVWrite(t *testing.T) {
 			},
 		},
 
-		Expected: []string{
-			"titel,youtube-link,youtube-start",
-			"Minecraft,some link,26.07.2025",
-		},
+		Expected: `[
+			{
+				"Name": "Minecraft",
+				"Content": [
+					{
+						"Link": "some link",
+						"Start": "2025-07-26T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			}
+		]`,
 	})
 
 	validate(t, &testCase{
 		Name: "Multiple Games",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube")},
 		Games: []*Game{
 			&Game{
 				Name: "Minecraft",
@@ -84,40 +84,76 @@ func TestCSVWrite(t *testing.T) {
 			},
 		},
 
-		Expected: []string{
-			"titel,youtube-link,youtube-start",
-			"Adrift,other link,26.08.2025",
-			"Minecraft,some link,26.07.2025",
-		},
+		Expected: `[
+			{
+				"Name": "Adrift",
+				"Content": [
+					{
+						"Link": "other link",
+						"Start": "2025-08-26T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			},
+			{
+				"Name": "Minecraft",
+				"Content": [
+					{
+						"Link": "some link",
+						"Start": "2025-07-26T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			}
+		]`,
 	})
 
 	validate(t, &testCase{
-		Name: "Unknown Source Type",
+		Name: "Multiple Source Types",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube")},
 		Games: []*Game{
 			&Game{
 				Name: "Minecraft",
 				Content: []*Content{
 					&Content{
-						Source: SourceType("Twitch"),
-						Link:   "some link",
+						Source: SourceType("youtube"),
+						Link:   "youtube link",
+						Start:  time.Date(2025, 7, 28, 0, 0, 0, 0, time.UTC),
+					},
+					&Content{
+						Source: SourceType("twitch"),
+						Link:   "twitch link",
 						Start:  time.Date(2025, 7, 26, 0, 0, 0, 0, time.UTC),
 					},
 				},
 			},
 		},
 
-		Error: "unknown source type",
+		Expected: `[
+			{
+				"Name": "Minecraft",
+				"Content": [
+					{
+						"Link": "twitch link",
+						"Start": "2025-07-26T00:00:00Z",
+						"Source": "twitch"
+					},
+					{
+						"Link": "youtube link",
+						"Start": "2025-07-28T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			}
+		]`,
 	})
 }
 
-func TestCSVRead(t *testing.T) {
+func TestJSONRead(t *testing.T) {
 	type testCase struct {
 		Name string
 
-		KnownSourceTypes []SourceType
-		CSV              []string
+		JSON string
 
 		Expected []*Game
 		Error    string
@@ -125,7 +161,7 @@ func TestCSVRead(t *testing.T) {
 
 	validate := func(t *testing.T, tc *testCase) {
 		t.Run(tc.Name, func(t *testing.T) {
-			actual, err := internalCSVRead(strings.NewReader(strings.Join(tc.CSV, "\n")), tc.KnownSourceTypes)
+			actual, err := JSONRead(strings.NewReader(tc.JSON))
 			if tc.Error != "" {
 				assert.ErrorContains(t, err, tc.Error)
 			} else {
@@ -138,11 +174,18 @@ func TestCSVRead(t *testing.T) {
 	validate(t, &testCase{
 		Name: "Single Game",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube")},
-		CSV: []string{
-			"titel,youtube-link,youtube-start",
-			"Minecraft,some link,26.07.2025",
-		},
+		JSON: `[
+			{
+				"Name": "Minecraft",
+				"Content": [
+					{
+						"Link": "some link",
+						"Start": "2025-07-26T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			}
+		]`,
 
 		Expected: []*Game{
 			&Game{
@@ -161,12 +204,28 @@ func TestCSVRead(t *testing.T) {
 	validate(t, &testCase{
 		Name: "Multiple Games",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube")},
-		CSV: []string{
-			"titel,youtube-link,youtube-start",
-			"Adrift,other link,26.08.2025",
-			"Minecraft,some link,26.07.2025",
-		},
+		JSON: `[
+			{
+				"Name": "Adrift",
+				"Content": [
+					{
+						"Link": "other link",
+						"Start": "2025-08-26T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			},
+			{
+				"Name": "Minecraft",
+				"Content": [
+					{
+						"Link": "some link",
+						"Start": "2025-07-26T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			}
+		]`,
 
 		Expected: []*Game{
 			&Game{
@@ -193,25 +252,25 @@ func TestCSVRead(t *testing.T) {
 	})
 
 	validate(t, &testCase{
-		Name: "Unknown Source Type",
-
-		KnownSourceTypes: []SourceType{SourceType("youtube")},
-		CSV: []string{
-			"titel,twitch-link,twitch-start",
-			"Minecraft,some link,26.07.2025",
-		},
-
-		Error: "unknown source type",
-	})
-
-	validate(t, &testCase{
 		Name: "Multiple Source Types",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube"), SourceType("twitch")},
-		CSV: []string{
-			"titel,twitch-link,twitch-start,youtube-link,youtube-start",
-			"Minecraft,some link,26.07.2025,other link,28.07.2025",
-		},
+		JSON: `[
+			{
+				"Name": "Minecraft",
+				"Content": [
+					{
+						"Link": "twitch link",
+						"Start": "2025-07-26T00:00:00Z",
+						"Source": "twitch"
+					},
+					{
+						"Link": "youtube link",
+						"Start": "2025-07-28T00:00:00Z",
+						"Source": "youtube"
+					}
+				]
+			}
+		]`,
 
 		Expected: []*Game{
 			&Game{
@@ -219,12 +278,12 @@ func TestCSVRead(t *testing.T) {
 				Content: []*Content{
 					&Content{
 						Source: SourceType("twitch"),
-						Link:   "some link",
+						Link:   "twitch link",
 						Start:  time.Date(2025, 7, 26, 0, 0, 0, 0, time.UTC),
 					},
 					&Content{
 						Source: SourceType("youtube"),
-						Link:   "other link",
+						Link:   "youtube link",
 						Start:  time.Date(2025, 7, 28, 0, 0, 0, 0, time.UTC),
 					},
 				},
@@ -233,25 +292,18 @@ func TestCSVRead(t *testing.T) {
 	})
 
 	validate(t, &testCase{
-		Name: "Not all Source Types",
+		Name: "Invalid JSON",
 
-		KnownSourceTypes: []SourceType{SourceType("youtube"), SourceType("twitch")},
-		CSV: []string{
-			"titel,twitch-link,twitch-start",
-			"Minecraft,some link,26.07.2025",
-		},
+		JSON: `[invalid json}`,
 
-		Expected: []*Game{
-			&Game{
-				Name: "Minecraft",
-				Content: []*Content{
-					&Content{
-						Source: SourceType("twitch"),
-						Link:   "some link",
-						Start:  time.Date(2025, 7, 26, 0, 0, 0, 0, time.UTC),
-					},
-				},
-			},
-		},
+		Error: "invalid character",
+	})
+
+	validate(t, &testCase{
+		Name: "Empty Array",
+
+		JSON: `[]`,
+
+		Expected: []*Game{},
 	})
 }

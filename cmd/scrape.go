@@ -32,7 +32,7 @@ var (
 func init() {
 	rootCmd.AddCommand(scrapeCmd)
 
-	scrapeCmd.Flags().String("data-path", "./public/data.csv", "data output path")
+	scrapeCmd.Flags().String("data-path", "./public/data.json", "data output path")
 	scrapeCmd.Flags().String("youtube-api-key", "", "YouTube API key")
 	_ = scrapeCmd.MarkFlagRequired("youtube-api-key")
 	scrapeCmd.Flags().Uint("youtube-page-results", 50, "YouTube results per request")
@@ -61,7 +61,7 @@ func scrape(csvDataPath, youtubeApiKey string, youtubePageResults, youtubePageLi
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		existingData, err = model.CSVRead(readFile)
+		existingData, err = model.JSONRead(readFile)
 		closeErr := readFile.Close()
 		if err != nil || closeErr != nil {
 			return goerrors.Join(errors.WithStack(err), errors.WithStack(closeErr))
@@ -79,5 +79,5 @@ func scrape(csvDataPath, youtubeApiKey string, youtubePageResults, youtubePageLi
 		err = goerrors.Join(file.Close(), err)
 	}()
 
-	return model.CSVWrite(file, games)
+	return model.JSONWrite(file, games)
 }
