@@ -1,4 +1,4 @@
-package youtube
+package converter
 
 import (
 	"log/slog"
@@ -9,24 +9,33 @@ import (
 
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/steam"
-	"github.com/forPelevin/gomoji"
+	"github.com/bauersimon/grnkdb/util"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
-var commonWords = map[string]bool{}
+var steamStoreLinkRE = regexp.MustCompile(`steampowered\.com\/app\/(\d+)`)
 
-func init() {
-	words := "alles,der,die,das,ein,the,gronkh"
-	for _, word := range strings.Split(words, ",") {
-		commonWords[word] = true
+// VideoToGameConverter converts video metadata to game information.
+type VideoToGameConverter struct {
+	steamClient *steam.Client
+	windowSize  uint
+	logger      *slog.Logger
+}
+
+var _ Interface = (*VideoToGameConverter)(nil)
+
+// NewVideoToGameConverter creates a new video-to-game converter.
+func NewVideoToGameConverter(steamClient *steam.Client, windowSize uint, logger *slog.Logger) *VideoToGameConverter {
+	return &VideoToGameConverter{
+		steamClient: steamClient,
+		windowSize:  windowSize,
+		logger:      logger,
 	}
 }
 
-var steamStoreLinkRE = regexp.MustCompile(`steampowered\.com\/app\/(\d+)`)
-
-// convertVideosToGames converts model.Video structs to games
-func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos []*model.Video) (games []*model.Game, err error) {
+// Convert transforms video metadata into game information.
+func (c *VideoToGameConverter) Convert(videos []*model.Video) (games []*model.Game, err error) {
 	// Create cleaned copies of videos for processing without modifying originals
 	cleanedVideos := make([]*model.Video, len(videos))
 	for i, video := range videos {
@@ -37,25 +46,40 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 			Link:        video.Link,
 			PublishedAt: video.PublishedAt,
 			ChannelID:   video.ChannelID,
+			Source:      video.Source,
 		}
 	}
 
-	logger.Debug("cleaning up video meta")
+	c.logger.Debug("cleaning up video meta")
 	cleanupVideoMeta(cleanedVideos)
 
+	c.logger.Info("converting videos to games", "videos", len(videos))
+	for window := range util.SlidingWindowed(cleanedVideos, c.windowSize, max(uint(0), c.windowSize/2)) {
+		g, err := c.convertVideosToGames(window)
+		if err != nil {
+			return nil, err
+		}
+		games = model.MergeGames(games, g)
+	}
+
+	return games, nil
+}
+
+// convertVideosToGames converts model.Video structs to games
+func (c *VideoToGameConverter) convertVideosToGames(videos []*model.Video) (games []*model.Game, err error) {
 	earliestVideoForGame := map[string]*model.Video{}
-	for i, video := range cleanedVideos {
-		logger.Debug("extracting game information", "video", video.VideoID, "progress", i+1, "total", len(cleanedVideos))
+	for i, video := range videos {
+		c.logger.Debug("extracting game information", "video", video.VideoID, "progress", i+1, "total", len(videos))
 		var newGameSpecifier string
 
 		// Try to extract Steam links from description.
 		if matches := steamStoreLinkRE.FindStringSubmatch(video.Description); len(matches) > 0 {
-			name, err := steamClient.GameName(matches[1])
+			name, err := c.steamClient.GameName(matches[1])
 			if err != nil {
-				logger.Error("cannot get name from steam", "video", video.VideoID, "error", err.Error())
+				c.logger.Error("cannot get name from steam", "video", video.VideoID, "error", err.Error())
 			} else {
 				newGameSpecifier = strings.ToLower(name)
-				logger.Debug("found game information on steam", "video", video.VideoID, "game", name)
+				c.logger.Debug("found game information on steam", "video", video.VideoID, "game", name)
 			}
 		}
 
@@ -106,10 +130,10 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 			} else {
 				earliestVideoForGame[newGameSpecifier] = video
 			}
-			logger.Debug("match", "video", video.Title)
+			c.logger.Debug("match", "video", video.Title)
 		} else {
 			earliestVideoForGame[video.Title] = video
-			logger.Debug("no match", "video", video.Title)
+			c.logger.Debug("no match", "video", video.Title)
 		}
 	}
 
@@ -121,7 +145,7 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 				{
 					Link:   video.Link,
 					Start:  video.PublishedAt,
-					Source: model.SourceYouTube,
+					Source: video.Source,
 				},
 			},
 		})
@@ -131,79 +155,6 @@ func convertVideosToGames(logger *slog.Logger, steamClient *steam.Client, videos
 	})
 
 	return games, nil
-}
-
-type cleaner struct {
-	// match holds a regular expression to match.
-	// Will match the whole string if "nil".
-	match *regexp.Regexp
-	// replace holds a replace function.
-	// Matches will be replaced with "" if "nil".
-	replace func(in string, match [][]string) string
-}
-
-func (c cleaner) process(s string) string {
-	if c.match == nil && c.replace == nil {
-		return ""
-	}
-
-	var match [][]string
-	if c.match != nil {
-		match = c.match.FindAllStringSubmatch(s, -1)
-		if len(match) == 0 {
-			return s
-		}
-	}
-
-	if c.replace == nil {
-		for _, m := range match {
-			s = strings.ReplaceAll(s, m[0], "")
-		}
-		return s
-	}
-
-	return c.replace(s, match)
-}
-
-var cleanups = []*cleaner{
-	// Common tags.
-	{regexp.MustCompile(`(?i)Let's (Play|Test)`), nil},
-	{regexp.MustCompile(`(?i)\(?Ende\)?`), nil},
-	{regexp.MustCompile(`(?i)\(?Demo\)?`), nil},
-	{regexp.MustCompile(`(?i)\(?Angespielt\)?`), nil},
-	{regexp.MustCompile(`(?i)\(?Preview\)?`), nil},
-	{regexp.MustCompile(`(?i)\(LPT[^\)]*\)`), nil},
-	{regexp.MustCompile(`M\.?e\.?t\.?t\.?`), nil},
-	// Episode numbers.
-	{regexp.MustCompile(`#\d+`), nil},
-	{regexp.MustCompile(`\D\d\d\d\:`), nil},
-	{regexp.MustCompile(`\d+/\d+`), nil},
-	{regexp.MustCompile(`Folge\s+\d+`), nil},
-	{regexp.MustCompile(`S\d+E\d+`), nil},
-	// Anything in squared brackets.
-	{regexp.MustCompile(`\[[^\[]*\]`), nil},
-	// All non-character or non-digit characters.
-	{regexp.MustCompile(`[^\p{L}\p{N}\s\:]+`), nil},
-	{
-		replace: func(in string, match [][]string) string {
-			return gomoji.ReplaceEmojisWith(in, ' ')
-		},
-	},
-	{
-		replace: func(in string, match [][]string) string {
-			return whitespaceRE.ReplaceAllString(in, " ")
-		},
-	},
-}
-
-var whitespaceRE = regexp.MustCompile(`\s+`)
-
-func cleanupVideoMeta(videos []*model.Video) {
-	for _, video := range videos {
-		for _, c := range cleanups {
-			video.Title = c.process(video.Title)
-		}
-	}
 }
 
 func compareVideos(a, b *model.Video) int {

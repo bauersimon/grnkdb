@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bauersimon/grnkdb/converter"
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper/youtube"
+	"github.com/bauersimon/grnkdb/steam"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -42,11 +44,18 @@ func init() {
 }
 
 func scrape(csvDataPath, youtubeApiKey string, youtubePageResults, youtubePageLimit, youtubeWindowSize uint, youtubeChannelIDs []string) (err error) {
-	youtube, err := youtube.NewScraper(slog.Default(), youtubeApiKey, youtubePageLimit, youtubePageResults, youtubeWindowSize)
+	youtubeScraper, err := youtube.NewScraper(slog.Default(), youtubeApiKey, youtubePageLimit, youtubePageResults)
 	if err != nil {
 		return err
 	}
-	games, err := youtube.Scrape(youtubeChannelIDs)
+
+	videos, err := youtubeScraper.Videos(youtubeChannelIDs)
+	if err != nil {
+		return err
+	}
+
+	videoConverter := converter.NewVideoToGameConverter(steam.NewClient(), youtubeWindowSize, slog.Default())
+	games, err := videoConverter.Convert(videos)
 	if err != nil {
 		return err
 	}

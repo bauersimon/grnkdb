@@ -1,4 +1,4 @@
-package youtube
+package converter
 
 import (
 	"log/slog"
@@ -32,7 +32,8 @@ func TestConvertVideosToGames(t *testing.T) {
 				}
 			}()
 
-			actual, err := convertVideosToGames(logger, steam.NewClient(), tc.Videos)
+			converter := NewVideoToGameConverter(steam.NewClient(), 100, logger)
+			actual, err := converter.Convert(tc.Videos)
 			if tc.Error != "" {
 				assert.ErrorContains(t, err, tc.Error)
 			} else {
@@ -51,18 +52,21 @@ func TestConvertVideosToGames(t *testing.T) {
 				PublishedAt: time.Date(2010, 10, 19, 19, 0, 17, 0, time.UTC),
 				VideoID:     "DM52HxaLK-Y",
 				Link:        "https://www.youtube.com/watch?v=DM52HxaLK-Y",
+				Source:      model.SourceYouTube,
 			},
 			{
 				Title:       "Let's Play Minecraft #002 [Deutsch] [HD] - Inselkoller & Nachtwache",
 				PublishedAt: time.Date(2010, 10, 20, 19, 0, 17, 0, time.UTC),
 				VideoID:     "tAaCTvht5Co",
 				Link:        "https://www.youtube.com/watch?v=tAaCTvht5Co",
+				Source:      model.SourceYouTube,
 			},
 			{
 				Title:       "Let's Play Minecraft #003 [Deutsch] [HD] - Majestätische Landschaften",
 				PublishedAt: time.Date(2010, 10, 21, 19, 0, 17, 0, time.UTC),
 				VideoID:     "ednqMErMOsM",
 				Link:        "https://www.youtube.com/watch?v=ednqMErMOsM",
+				Source:      model.SourceYouTube,
 			},
 		},
 
@@ -89,18 +93,21 @@ func TestConvertVideosToGames(t *testing.T) {
 				PublishedAt: time.Date(2025, 12, 13, 19, 0, 17, 0, time.UTC),
 				VideoID:     "XONCCUxHGxo",
 				Link:        "https://www.youtube.com/watch?v=XONCCUxHGxo",
+				Source:      model.SourceYouTube,
 			},
 			{
 				Title:       "Schwarze Hemden, niedrige Lebenserwartung 🛕 INDIANA JONES AND THE GREAT CIRCLE #02",
 				PublishedAt: time.Date(2025, 12, 14, 19, 0, 17, 0, time.UTC),
 				VideoID:     "wVsDQx0SY1M",
 				Link:        "https://www.youtube.com/watch?v=wVsDQx0SY1M",
+				Source:      model.SourceYouTube,
 			},
 			{
 				Title:       "Indiana Jones und das Geheimnis der Schwerkraft 🛕 INDIANA JONES AND THE GREAT CIRCLE #03",
 				PublishedAt: time.Date(2025, 12, 15, 19, 0, 17, 0, time.UTC),
 				VideoID:     "9Ack9uoQRIM",
 				Link:        "https://www.youtube.com/watch?v=9Ack9uoQRIM",
+				Source:      model.SourceYouTube,
 			},
 		},
 
@@ -128,6 +135,7 @@ func TestConvertVideosToGames(t *testing.T) {
 				VideoID:     "XONCCUxHGxo",
 				Link:        "https://www.youtube.com/watch?v=XONCCUxHGxo",
 				Description: "https://store.steampowered.com/app/2677660",
+				Source:      model.SourceYouTube,
 			},
 		},
 		Expected: []*model.Game{
