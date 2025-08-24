@@ -42,15 +42,11 @@ func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults 
 	}, nil
 }
 
-// Videos extracts video metadata from the specified YouTube channels.
-func (s *Scraper) Videos(channelIDs []string) ([]*model.Video, error) {
-	var playlistItems []*youtube.PlaylistItem
-	for _, channelID := range channelIDs {
-		items, err := s.scrapeChannel(channelID)
-		if err != nil {
-			return nil, err
-		}
-		playlistItems = append(playlistItems, items...)
+// Videos extracts video metadata from a single YouTube channel.
+func (s *Scraper) Videos(channelID string) ([]*model.Video, error) {
+	playlistItems, err := s.scrapeChannel(channelID)
+	if err != nil {
+		return nil, err
 	}
 
 	s.logger.Info("converting playlist items to videos", "items", len(playlistItems))
