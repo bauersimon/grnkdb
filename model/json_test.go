@@ -342,12 +342,13 @@ func TestVideoCSVWrite(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 				PublishedAt: time.Date(2009, 10, 25, 9, 57, 33, 0, time.UTC),
 				ChannelID:   "UCuAXFkgsw1L7xaCfnd5JJOw",
+				Source:      SourceYouTube,
 			},
 		},
 
 		Expected: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
-			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
+			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ,youtube",
 		},
 	})
 
@@ -362,6 +363,7 @@ func TestVideoCSVWrite(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 				PublishedAt: time.Date(2009, 10, 25, 9, 57, 33, 0, time.UTC),
 				ChannelID:   "UCuAXFkgsw1L7xaCfnd5JJOw",
+				Source:      SourceYouTube,
 			},
 			{
 				VideoID:     "abc123",
@@ -370,13 +372,14 @@ func TestVideoCSVWrite(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=abc123",
 				PublishedAt: time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC),
 				ChannelID:   "UCtest123",
+				Source:      SourceYouTube,
 			},
 		},
 
 		Expected: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
-			"https://www.youtube.com/watch?v=abc123,2023-01-01T12:00:00Z,Test Video,A test video description,UCtest123,abc123",
-			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
+			"https://www.youtube.com/watch?v=abc123,2023-01-01T12:00:00Z,Test Video,A test video description,UCtest123,abc123,youtube",
+			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ,youtube",
 		},
 	})
 
@@ -384,7 +387,7 @@ func TestVideoCSVWrite(t *testing.T) {
 		Name:   "Empty Videos",
 		Videos: []*Video{},
 		Expected: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
 		},
 	})
 
@@ -399,12 +402,13 @@ func TestVideoCSVWrite(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=test123",
 				PublishedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 				ChannelID:   "",
+				Source:      SourceYouTube,
 			},
 		},
 
 		Expected: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
-			"https://www.youtube.com/watch?v=test123,2023-01-01T00:00:00Z,,,,test123",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
+			"https://www.youtube.com/watch?v=test123,2023-01-01T00:00:00Z,,,,test123,youtube",
 		},
 	})
 }
@@ -435,8 +439,8 @@ func TestVideoCSVRead(t *testing.T) {
 		Name: "Single Video",
 
 		CSV: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
-			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
+			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ,youtube",
 		},
 
 		Expected: []*Video{
@@ -447,6 +451,7 @@ func TestVideoCSVRead(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 				PublishedAt: time.Date(2009, 10, 25, 9, 57, 33, 0, time.UTC),
 				ChannelID:   "UCuAXFkgsw1L7xaCfnd5JJOw",
+				Source:      SourceYouTube,
 			},
 		},
 	})
@@ -455,9 +460,9 @@ func TestVideoCSVRead(t *testing.T) {
 		Name: "Multiple Videos",
 
 		CSV: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
-			"https://www.youtube.com/watch?v=abc123,2023-01-01T12:00:00Z,Test Video,A test video description,UCtest123,abc123",
-			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
+			"https://www.youtube.com/watch?v=abc123,2023-01-01T12:00:00Z,Test Video,A test video description,UCtest123,abc123,youtube",
+			"https://www.youtube.com/watch?v=dQw4w9WgXcQ,2009-10-25T09:57:33Z,Never Gonna Give You Up,Rick Astley's official music video,UCuAXFkgsw1L7xaCfnd5JJOw,dQw4w9WgXcQ,youtube",
 		},
 
 		Expected: []*Video{
@@ -468,6 +473,7 @@ func TestVideoCSVRead(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=abc123",
 				PublishedAt: time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC),
 				ChannelID:   "UCtest123",
+				Source:      SourceYouTube,
 			},
 			{
 				VideoID:     "dQw4w9WgXcQ",
@@ -476,6 +482,7 @@ func TestVideoCSVRead(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 				PublishedAt: time.Date(2009, 10, 25, 9, 57, 33, 0, time.UTC),
 				ChannelID:   "UCuAXFkgsw1L7xaCfnd5JJOw",
+				Source:      SourceYouTube,
 			},
 		},
 	})
@@ -483,7 +490,7 @@ func TestVideoCSVRead(t *testing.T) {
 	validate(t, &testCase{
 		Name: "Header Only",
 		CSV: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
 		},
 		Expected: []*Video{},
 	})
@@ -492,8 +499,8 @@ func TestVideoCSVRead(t *testing.T) {
 		Name: "Video with Empty Fields",
 
 		CSV: []string{
-			"Link,PublishedAt,Title,Description,ChannelID,VideoID",
-			"https://www.youtube.com/watch?v=test123,2023-01-01T00:00:00Z,,,,test123",
+			"Link,PublishedAt,Title,Description,ChannelID,VideoID,Source",
+			"https://www.youtube.com/watch?v=test123,2023-01-01T00:00:00Z,,,,test123,youtube",
 		},
 
 		Expected: []*Video{
@@ -504,6 +511,7 @@ func TestVideoCSVRead(t *testing.T) {
 				Link:        "https://www.youtube.com/watch?v=test123",
 				PublishedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 				ChannelID:   "",
+				Source:      SourceYouTube,
 			},
 		},
 	})

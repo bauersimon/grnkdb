@@ -105,6 +105,7 @@ func convertPlaylistItemToVideo(item *youtube.PlaylistItem) (*model.Video, error
 		Link:        fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.Snippet.ResourceId.VideoId),
 		PublishedAt: publishedAt,
 		ChannelID:   item.Snippet.ChannelId,
+		Source:      model.SourceYouTube,
 	}, nil
 }
 

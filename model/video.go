@@ -18,4 +18,6 @@ type Video struct {
 	ChannelID string `csv:"ChannelID"`
 	// VideoID is the unique identifier for the video on the platform.
 	VideoID string `csv:"VideoID"`
+	// Source is the source platform of the video.
+	Source SourceType `csv:"Source"`
 }
