@@ -2,55 +2,52 @@ package cmd
 
 import (
 	goerrors "errors"
-	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/bauersimon/grnkdb/converter"
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/steam"
+	"github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
-var (
-	convertCmd = &cobra.Command{
-		Use:   "convert",
-		Short: "Convert CSV files to games JSON",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			inputDir, _ := cmd.Flags().GetString("input")
-			output, _ := cmd.Flags().GetString("output")
-			windowSize, _ := cmd.Flags().GetUint("window-size")
+type ConvertCommand struct {
+	logger *zap.Logger
 
-			videoConverter := converter.NewVideoToGameConverter(steam.NewClient(), windowSize, slog.Default())
-
-			return convertCSVToGames(videoConverter, inputDir, output)
-		},
-	}
-)
-
-func init() {
-	rootCmd.AddCommand(convertCmd)
-
-	convertCmd.Flags().String("input", "./data", "input directory containing CSV files")
-	convertCmd.Flags().String("output", "./public/data.json", "output JSON file path")
-	convertCmd.Flags().Uint("window-size", 100, "conversion window size")
+	Input      string `long:"input" default:"./data" description:"Input directory containing CSV files"`
+	Output     string `long:"output" default:"./public/data.json" description:"Output JSON file path"`
+	WindowSize uint   `long:"window-size" default:"100" description:"Conversion window size"`
 }
 
-func convertCSVToGames(converter converter.Interface, inputDir, outputPath string) (err error) {
+func NewConvertCommand(logger *zap.Logger) flags.Commander {
+	return &ConvertCommand{
+		logger: logger,
+	}
+}
+
+func (cmd *ConvertCommand) Execute(args []string) error {
+	videoConverter := converter.NewVideoToGameConverter(steam.NewClient(), cmd.WindowSize, cmd.logger)
+
+	return cmd.convertCSVToGames(videoConverter, cmd.Input, cmd.Output)
+}
+
+func (cmd *ConvertCommand) convertCSVToGames(converter converter.Interface, inputDir, outputPath string) (err error) {
 	csvFiles, err := filepath.Glob(filepath.Join(inputDir, "*.csv"))
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
 	if len(csvFiles) == 0 {
-		slog.Warn("no CSV files found", "directory", inputDir)
+		cmd.logger.Warn("no CSV files found", zap.String("directory", inputDir))
+
 		return nil
 	}
 
 	var allVideos []*model.Video
 	for _, csvFile := range csvFiles {
-		slog.Debug("reading CSV file", "file", csvFile)
+		cmd.logger.Debug("reading CSV file", zap.String("file", csvFile))
 
 		file, err := os.Open(csvFile)
 		if err != nil {
@@ -68,21 +65,24 @@ func convertCSVToGames(converter converter.Interface, inputDir, outputPath strin
 		}
 
 		allVideos = append(allVideos, videos...)
-		slog.Debug("loaded videos", "file", filepath.Base(csvFile), "count", len(videos))
+		cmd.logger.Debug("loaded videos",
+			zap.String("file", filepath.Base(csvFile)),
+			zap.Int("count", len(videos)))
 	}
 
 	if len(allVideos) == 0 {
-		slog.Warn("no videos found in CSV files")
+		cmd.logger.Warn("no videos found in CSV files")
+
 		return nil
 	}
 
-	slog.Info("converting videos to games", "total_videos", len(allVideos))
+	cmd.logger.Info("converting videos to games", zap.Int("videos", len(allVideos)))
 	games, err := converter.Convert(allVideos)
 	if err != nil {
 		return err
 	}
 
-	slog.Info("conversion completed", "games", len(games))
+	cmd.logger.Info("conversion completed", zap.Int("games", len(games)))
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return errors.WithStack(err)
@@ -91,7 +91,7 @@ func convertCSVToGames(converter converter.Interface, inputDir, outputPath strin
 	// Load existing data if it exists.
 	var existingData []*model.Game
 	if _, err := os.Stat(outputPath); err == nil {
-		slog.Info("loading existing data", "file", outputPath)
+		cmd.logger.Info("loading existing data", zap.String("file", outputPath))
 		readFile, err := os.Open(outputPath)
 		if err != nil {
 			return errors.WithStack(err)
@@ -101,12 +101,12 @@ func convertCSVToGames(converter converter.Interface, inputDir, outputPath strin
 		if err != nil || closeErr != nil {
 			return goerrors.Join(errors.WithStack(err), errors.WithStack(closeErr))
 		}
-		slog.Info("loaded existing games", "count", len(existingData))
+		cmd.logger.Info("loaded existing games", zap.Int("count", len(existingData)))
 	}
 
 	if existingData != nil {
 		games = model.MergeGames(games, existingData)
-		slog.Info("merged with existing data", "total_games", len(games))
+		cmd.logger.Info("merged with existing data", zap.Int("games", len(games)))
 	}
 
 	file, err := os.Create(outputPath)
@@ -121,6 +121,8 @@ func convertCSVToGames(converter converter.Interface, inputDir, outputPath strin
 		return err
 	}
 
-	slog.Info("conversion completed successfully", "output", outputPath, "games", len(games))
+	cmd.logger.Info("conversion completed successfully",
+		zap.String("output", outputPath),
+		zap.Int("games", len(games)))
 	return nil
 }

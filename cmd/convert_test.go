@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestConvertCSVToGames(t *testing.T) {
@@ -39,7 +40,8 @@ func TestConvertCSVToGames(t *testing.T) {
 				tc.Setup(t, mockConverter)
 			}
 
-			err := convertCSVToGames(mockConverter, tmpDir, outputPath)
+			cmd := &ConvertCommand{logger: zaptest.NewLogger(t)}
+			err := cmd.convertCSVToGames(mockConverter, tmpDir, outputPath)
 
 			if tc.Error != "" {
 				assert.ErrorContains(t, err, tc.Error)

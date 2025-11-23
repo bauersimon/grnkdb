@@ -10,6 +10,7 @@ import (
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestScrapeYoutube(t *testing.T) {
@@ -32,7 +33,8 @@ func TestScrapeYoutube(t *testing.T) {
 				tc.Setup(t, mockScraper)
 			}
 
-			err := scrapeYoutube(mockScraper, tmpDir, tc.ChannelIDs)
+			cmd := &YouTubeCommand{logger: zaptest.NewLogger(t)}
+			err := cmd.scrapeYoutube(mockScraper, tmpDir, tc.ChannelIDs)
 
 			if tc.Error != "" {
 				assert.ErrorContains(t, err, tc.Error)

@@ -3,14 +3,13 @@ package youtube
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
-
-	"google.golang.org/api/youtube/v3"
 
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"google.golang.org/api/youtube/v3"
 )
 
 // Scraper is a YouTube scraper.
@@ -20,13 +19,13 @@ type Scraper struct {
 	pageLimit   uint
 	pageResults uint
 
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
 var _ scraper.Interface = (*Scraper)(nil)
 
 // NewScraper initializes a YouTube scraper.
-func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults uint) (*Scraper, error) {
+func NewScraper(logger *zap.Logger, apiKey string, pageLimit uint, pageResults uint) (*Scraper, error) {
 	service, err := initializeService(context.Background(), apiKey)
 	if err != nil {
 		return nil, err
@@ -49,12 +48,14 @@ func (s *Scraper) Videos(channelID string) ([]*model.Video, error) {
 		return nil, err
 	}
 
-	s.logger.Info("converting playlist items to videos", "items", len(playlistItems))
+	s.logger.Info("converting playlist items to videos", zap.Int("items", len(playlistItems)))
 	videos := make([]*model.Video, 0, len(playlistItems))
 	for _, item := range playlistItems {
 		video, err := convertPlaylistItemToVideo(item)
 		if err != nil {
-			s.logger.Warn("failed to convert playlist item to video", "videoId", item.Snippet.ResourceId.VideoId, "error", err)
+			s.logger.Warn("failed to convert playlist item to video",
+				zap.String("videoId", item.Snippet.ResourceId.VideoId),
+				zap.Error(err))
 			continue
 		}
 		videos = append(videos, video)
@@ -81,9 +82,11 @@ func convertPlaylistItemToVideo(item *youtube.PlaylistItem) (*model.Video, error
 }
 
 func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err error) {
-	s.logger.Info("scraping channel", "id", id)
+	s.logger.Info("scraping channel", zap.String("id", id))
 	defer func() {
-		s.logger.Info("scraping channel done", "id", id, "videos", len(videos))
+		s.logger.Info("scraping channel done",
+			zap.String("id", id),
+			zap.Int("videos", len(videos)))
 	}()
 
 	response, err := s.service.Channels.List([]string{"contentDetails"}).Id(id).Do()
@@ -99,7 +102,7 @@ func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err 
 	for {
 		page++
 
-		s.logger.Debug("scraping channel page", "page", page)
+		s.logger.Debug("scraping channel page", zap.Int("page", page))
 		call := s.service.PlaylistItems.List([]string{"snippet"}).
 			PlaylistId(uploadsPlaylistID).
 			MaxResults(int64(s.pageResults))
@@ -113,7 +116,10 @@ func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err 
 		} else if len(playlistResult.Items) == 0 {
 			break
 		}
-		s.logger.Debug("scraping channel page successful", "page", page, "videos", len(playlistResult.Items), "sample", playlistResult.Items[0].Snippet.Title)
+		s.logger.Debug("scraping channel page successful",
+			zap.Int("page", page),
+			zap.Int("videos", len(playlistResult.Items)),
+			zap.String("sample", playlistResult.Items[0].Snippet.Title))
 
 		videos = append(videos, playlistResult.Items...)
 

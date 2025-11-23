@@ -1,17 +1,18 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
-var (
-	scrapeCmd = &cobra.Command{
-		Use:   "scrape",
-		Short: "Scrape video data from various platforms",
+// ScrapeCommand is the parent command for all scraping operations
+type ScrapeCommand struct {
+	YouTube YouTubeCommand `command:"youtube" description:"Scrape YouTube channels and output CSV files"`
+}
+
+func NewScrapeCommand(logger *zap.Logger) *ScrapeCommand {
+	return &ScrapeCommand{
+		YouTube: YouTubeCommand{
+			logger: logger,
+		},
 	}
-)
-
-func init() {
-	rootCmd.AddCommand(scrapeCmd)
-	scrapeCmd.AddCommand(scrapeYoutubeCmd)
 }

@@ -1,7 +1,6 @@
 package converter
 
 import (
-	"log/slog"
 	"maps"
 	"regexp"
 	"slices"
@@ -10,6 +9,7 @@ import (
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/steam"
 	"github.com/bauersimon/grnkdb/util"
+	"go.uber.org/zap"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -20,13 +20,13 @@ var steamStoreLinkRE = regexp.MustCompile(`steampowered\.com\/app\/(\d+)`)
 type VideoToGameConverter struct {
 	steamClient *steam.Client
 	windowSize  uint
-	logger      *slog.Logger
+	logger      *zap.Logger
 }
 
 var _ Interface = (*VideoToGameConverter)(nil)
 
 // NewVideoToGameConverter creates a new video-to-game converter.
-func NewVideoToGameConverter(steamClient *steam.Client, windowSize uint, logger *slog.Logger) *VideoToGameConverter {
+func NewVideoToGameConverter(steamClient *steam.Client, windowSize uint, logger *zap.Logger) *VideoToGameConverter {
 	return &VideoToGameConverter{
 		steamClient: steamClient,
 		windowSize:  windowSize,
@@ -53,7 +53,7 @@ func (c *VideoToGameConverter) Convert(videos []*model.Video) (games []*model.Ga
 	c.logger.Debug("cleaning up video meta")
 	cleanupVideoMeta(cleanedVideos)
 
-	c.logger.Info("converting videos to games", "videos", len(videos))
+	c.logger.Info("converting videos to games", zap.Int("videos", len(videos)))
 	for window := range util.SlidingWindowed(cleanedVideos, c.windowSize, max(uint(0), c.windowSize/2)) {
 		g, err := c.convertVideosToGames(window)
 		if err != nil {
@@ -69,17 +69,24 @@ func (c *VideoToGameConverter) Convert(videos []*model.Video) (games []*model.Ga
 func (c *VideoToGameConverter) convertVideosToGames(videos []*model.Video) (games []*model.Game, err error) {
 	earliestVideoForGame := map[string]*model.Video{}
 	for i, video := range videos {
-		c.logger.Debug("extracting game information", "video", video.VideoID, "progress", i+1, "total", len(videos))
+		c.logger.Debug("extracting game information",
+			zap.String("video", video.VideoID),
+			zap.Int("progress", i+1),
+			zap.Int("total", len(videos)))
 		var newGameSpecifier string
 
 		// Try to extract Steam links from description.
 		if matches := steamStoreLinkRE.FindStringSubmatch(video.Description); len(matches) > 0 {
 			name, err := c.steamClient.GameName(matches[1])
 			if err != nil {
-				c.logger.Error("cannot get name from steam", "video", video.VideoID, "error", err.Error())
+				c.logger.Error("cannot get name from steam",
+					zap.String("video", video.VideoID),
+					zap.Error(err))
 			} else {
 				newGameSpecifier = strings.ToLower(name)
-				c.logger.Debug("found game information on steam", "video", video.VideoID, "game", name)
+				c.logger.Debug("found game information on steam",
+					zap.String("video", video.VideoID),
+					zap.String("game", name))
 			}
 		}
 
@@ -130,10 +137,10 @@ func (c *VideoToGameConverter) convertVideosToGames(videos []*model.Video) (game
 			} else {
 				earliestVideoForGame[newGameSpecifier] = video
 			}
-			c.logger.Debug("match", "video", video.Title)
+			c.logger.Debug("match", zap.String("video", video.Title))
 		} else {
 			earliestVideoForGame[video.Title] = video
-			c.logger.Debug("no match", "video", video.Title)
+			c.logger.Debug("no match", zap.String("video", video.Title))
 		}
 	}
 

@@ -3,7 +3,6 @@ package cmd
 import (
 	goerrors "errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -11,39 +10,32 @@ import (
 	"github.com/bauersimon/grnkdb/scraper"
 	"github.com/bauersimon/grnkdb/scraper/youtube"
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
-var (
-	scrapeYoutubeCmd = &cobra.Command{
-		Use:   "youtube [channel-id...]",
-		Short: "Scrape YouTube channels and output CSV files",
-		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			apiKey, _ := cmd.Flags().GetString("api-key")
-			outputDir, _ := cmd.Flags().GetString("output")
-			pageResults, _ := cmd.Flags().GetUint("page-results")
-			pageLimit, _ := cmd.Flags().GetUint("page-limit")
+type YouTubeCommand struct {
+	logger *zap.Logger
 
-			youtubeScraper, err := youtube.NewScraper(slog.Default(), apiKey, pageLimit, pageResults)
-			if err != nil {
-				return err
-			}
+	APIKey      string `long:"api-key" description:"YouTube API key"`
+	Output      string `long:"output" default:"./data" description:"Output directory for CSV files"`
+	PageResults uint   `long:"page-results" default:"50" description:"YouTube results per request"`
+	PageLimit   uint   `long:"page-limit" default:"0" description:"YouTube page limit (disabled: 0)"`
 
-			return scrapeYoutube(youtubeScraper, outputDir, args)
-		},
-	}
-)
-
-func init() {
-	scrapeYoutubeCmd.Flags().String("api-key", "", "YouTube API key")
-	_ = scrapeYoutubeCmd.MarkFlagRequired("api-key")
-	scrapeYoutubeCmd.Flags().String("output", "./data", "output directory for CSV files")
-	scrapeYoutubeCmd.Flags().Uint("page-results", 50, "YouTube results per request")
-	scrapeYoutubeCmd.Flags().Uint("page-limit", 0, "YouTube page limit (disabled: 0)")
+	Args struct {
+		ChannelIDs []string `positional-arg-name:"channel-id" required:"yes" description:"YouTube channel IDs to scrape"`
+	} `positional-args:"yes"`
 }
 
-func scrapeYoutube(scraper scraper.Interface, outputDir string, channelIDs []string) error {
+func (cmd *YouTubeCommand) Execute(args []string) error {
+	youtubeScraper, err := youtube.NewScraper(cmd.logger, cmd.APIKey, cmd.PageLimit, cmd.PageResults)
+	if err != nil {
+		return err
+	}
+
+	return cmd.scrapeYoutube(youtubeScraper, cmd.Output, cmd.Args.ChannelIDs)
+}
+
+func (cmd *YouTubeCommand) scrapeYoutube(scraper scraper.Interface, outputDir string, channelIDs []string) error {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return errors.WithStack(err)
 	}
@@ -51,12 +43,14 @@ func scrapeYoutube(scraper scraper.Interface, outputDir string, channelIDs []str
 	var scrapeErrors []error
 
 	for _, channelID := range channelIDs {
-		slog.Info("scraping channel", "channel", channelID)
+		cmd.logger.Info("scraping channel", zap.String("channel", channelID))
 
 		videos, err := scraper.Videos(channelID)
 		if err != nil {
 			scrapeErr := errors.Wrapf(err, "failed to scrape channel %s", channelID)
-			slog.Error("channel scraping failed", "channel", channelID, "error", scrapeErr)
+			cmd.logger.Error("channel scraping failed",
+				zap.String("channel", channelID),
+				zap.Error(scrapeErr))
 			scrapeErrors = append(scrapeErrors, scrapeErr)
 			continue
 		}
@@ -65,7 +59,9 @@ func scrapeYoutube(scraper scraper.Interface, outputDir string, channelIDs []str
 		file, err := os.Create(outputFile)
 		if err != nil {
 			fileErr := errors.Wrapf(err, "failed to create output file for channel %s", channelID)
-			slog.Error("file creation failed", "channel", channelID, "error", fileErr)
+			cmd.logger.Error("file creation failed",
+				zap.String("channel", channelID),
+				zap.Error(fileErr))
 			scrapeErrors = append(scrapeErrors, fileErr)
 			continue
 		}
@@ -73,19 +69,25 @@ func scrapeYoutube(scraper scraper.Interface, outputDir string, channelIDs []str
 		if err := model.VideoCSVWrite(file, videos); err != nil {
 			_ = file.Close()
 			csvErr := errors.Wrapf(err, "failed to write CSV for channel %s", channelID)
-			slog.Error("CSV writing failed", "channel", channelID, "error", csvErr)
+			cmd.logger.Error("CSV writing failed",
+				zap.String("channel", channelID),
+				zap.Error(csvErr))
 			scrapeErrors = append(scrapeErrors, csvErr)
 			continue
 		}
 
 		if err := file.Close(); err != nil {
 			closeErr := errors.Wrapf(err, "failed to close file for channel %s", channelID)
-			slog.Error("file closing failed", "channel", channelID, "error", closeErr)
+			cmd.logger.Error("file closing failed",
+				zap.String("channel", channelID),
+				zap.Error(closeErr))
 			scrapeErrors = append(scrapeErrors, closeErr)
 			continue
 		}
 
-		slog.Info("wrote CSV file", "file", outputFile, "videos", len(videos))
+		cmd.logger.Info("wrote CSV file",
+			zap.String("file", outputFile),
+			zap.Int("videos", len(videos)))
 	}
 
 	if len(scrapeErrors) > 0 {

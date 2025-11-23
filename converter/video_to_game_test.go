@@ -1,8 +1,6 @@
 package converter
 
 import (
-	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +8,7 @@ import (
 	"github.com/bauersimon/grnkdb/steam"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestConvertVideosToGames(t *testing.T) {
@@ -24,13 +23,7 @@ func TestConvertVideosToGames(t *testing.T) {
 
 	validate := func(t *testing.T, tc *testCase) {
 		t.Run(tc.Name, func(t *testing.T) {
-			var logContent strings.Builder
-			logger := slog.New(slog.NewTextHandler(&logContent, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			defer func() {
-				if t.Failed() {
-					t.Logf("logs:\n%s", logContent.String())
-				}
-			}()
+			logger := zaptest.NewLogger(t)
 
 			converter := NewVideoToGameConverter(steam.NewClient(), 100, logger)
 			actual, err := converter.Convert(tc.Videos)

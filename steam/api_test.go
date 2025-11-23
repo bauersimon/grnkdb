@@ -12,6 +12,10 @@ import (
 )
 
 func TestGameName(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Steam tests as they use the real steam API")
+	}
+
 	type testCase struct {
 		Name string
 

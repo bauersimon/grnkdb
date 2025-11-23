@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	goerrors "errors"
-	"fmt"
 	"html/template"
 	"os"
 	"os/exec"
@@ -11,42 +10,38 @@ import (
 	"time"
 
 	"github.com/bauersimon/grnkdb/model"
+	"github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
-var (
-	webCmd = &cobra.Command{
-		Use:   "web",
-		Short: "Generate website",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			gameDataPath, _ := cmd.Flags().GetString("data-path")
-			templateDataPath, _ := cmd.Flags().GetString("template-path")
-			htmlDataPath, _ := cmd.Flags().GetString("html-path")
-			loopGeneration, _ := cmd.Flags().GetBool("live")
+type WebCommand struct {
+	logger *zap.Logger
 
-			return web(gameDataPath, templateDataPath, htmlDataPath, loopGeneration)
-		},
-	}
-)
-
-func init() {
-	rootCmd.AddCommand(webCmd)
-
-	webCmd.Flags().String("data-path", "./public/data.json", "data input path")
-	webCmd.Flags().String("template-path", "./web/html", "template path")
-	webCmd.Flags().String("html-path", "./public", "html output path")
-	webCmd.Flags().BoolP("live", "l", false, "re-generate periodically")
+	DataPath     string `long:"data-path" default:"./public/data.json" description:"Data input path"`
+	TemplatePath string `long:"template-path" default:"./web/html" description:"Template path"`
+	HTMLPath     string `long:"html-path" default:"./public" description:"HTML output path"`
+	Live         bool   `long:"live" short:"l" description:"Re-generate periodically"`
 }
 
-func web(gameDataPath, templateDataPath, htmlDataPath string, loopGeneration bool) (err error) {
+func NewWebCommand(logger *zap.Logger) flags.Commander {
+	return &WebCommand{
+		logger: logger,
+	}
+}
+
+func (cmd *WebCommand) Execute(args []string) error {
+	return cmd.web(cmd.DataPath, cmd.TemplatePath, cmd.HTMLPath, cmd.Live)
+}
+
+func (cmd *WebCommand) web(gameDataPath, templateDataPath, htmlDataPath string, loopGeneration bool) (err error) {
 	for {
 		err = webLoop(gameDataPath, templateDataPath, htmlDataPath)
 		if !loopGeneration {
 			break
 		} else {
 			if err != nil {
-				fmt.Println(err)
+				cmd.logger.Error("web generation failed", zap.Error(err))
 			}
 			time.Sleep(time.Second)
 		}
