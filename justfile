@@ -1,5 +1,5 @@
-test:
-    go test -v ./...
+generate-mocks:
+    mockery
 
 format:
     find . -name "*.go" -not -path "./.go/*" -exec go fmt {} \;
@@ -12,8 +12,18 @@ install-devenv:
 install-lint:
     go install github.com/kisielk/errcheck@latest
     go install honnef.co/go/tools/cmd/staticcheck@latest
+    go install gotest.tools/gotestsum@latest
+    go install github.com/vektra/mockery/v2@latest
 
-install-all: install-devenv install-lint
+install: install-devenv install-lint
+
+build:
+    go build .
+
+test: generate-mocks
+    gotestsum -- -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+    rm coverage.out
 
 lint:
     #!/bin/bash

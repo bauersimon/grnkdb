@@ -1,0 +1,8 @@
+with-expecter: true
+packages:
+  github.com/bauersimon/grnkdb/scraper:
+    interfaces:
+      Interface:
+  github.com/bauersimon/grnkdb/converter:
+    interfaces:
+      Interface:

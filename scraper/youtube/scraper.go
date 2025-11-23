@@ -2,15 +2,14 @@ package youtube
 
 import (
 	"context"
-	"log/slog"
-
-	"google.golang.org/api/youtube/v3"
+	"fmt"
+	"time"
 
 	"github.com/bauersimon/grnkdb/model"
 	"github.com/bauersimon/grnkdb/scraper"
-	"github.com/bauersimon/grnkdb/steam"
-	"github.com/bauersimon/grnkdb/util"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"google.golang.org/api/youtube/v3"
 )
 
 // Scraper is a YouTube scraper.
@@ -19,16 +18,14 @@ type Scraper struct {
 
 	pageLimit   uint
 	pageResults uint
-	channelIDs  []string
-	windowSize  uint
 
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
 var _ scraper.Interface = (*Scraper)(nil)
 
 // NewScraper initializes a YouTube scraper.
-func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults uint, windowSize uint, channelIDs []string) (*Scraper, error) {
+func NewScraper(logger *zap.Logger, apiKey string, pageLimit uint, pageResults uint) (*Scraper, error) {
 	service, err := initializeService(context.Background(), apiKey)
 	if err != nil {
 		return nil, err
@@ -39,42 +36,57 @@ func NewScraper(logger *slog.Logger, apiKey string, pageLimit uint, pageResults 
 
 		pageLimit:   pageLimit,
 		pageResults: pageResults,
-		channelIDs:  channelIDs,
-		windowSize:  windowSize,
 
 		logger: logger,
 	}, nil
 }
 
-// Scrape extracts game information.
-func (s *Scraper) Scrape() ([]*model.Game, error) {
-	var videos []*youtube.PlaylistItem
-	for _, channelID := range s.channelIDs {
-		v, err := s.scrapeChannel(channelID)
-		if err != nil {
-			return nil, err
-		}
-		videos = append(videos, v...)
+// Videos extracts video metadata from a single YouTube channel.
+func (s *Scraper) Videos(channelID string) ([]*model.Video, error) {
+	playlistItems, err := s.scrapeChannel(channelID)
+	if err != nil {
+		return nil, err
 	}
 
-	s.logger.Info("converting videos", "videos", len(videos))
-	var games []*model.Game
-	steamClient := steam.NewClient()
-	for window := range util.SlidingWindowed(videos, s.windowSize, max(uint(0), s.windowSize/2)) {
-		g, err := convertVideosToGames(s.logger, steamClient, window)
+	s.logger.Info("converting playlist items to videos", zap.Int("items", len(playlistItems)))
+	videos := make([]*model.Video, 0, len(playlistItems))
+	for _, item := range playlistItems {
+		video, err := convertPlaylistItemToVideo(item)
 		if err != nil {
-			return nil, err
+			s.logger.Warn("failed to convert playlist item to video",
+				zap.String("videoId", item.Snippet.ResourceId.VideoId),
+				zap.Error(err))
+			continue
 		}
-		games = model.MergeGames(games, g)
+		videos = append(videos, video)
 	}
 
-	return games, nil
+	return videos, nil
+}
+
+func convertPlaylistItemToVideo(item *youtube.PlaylistItem) (*model.Video, error) {
+	publishedAt, err := time.Parse(time.RFC3339, item.Snippet.PublishedAt)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse published date: %s", item.Snippet.PublishedAt)
+	}
+
+	return &model.Video{
+		VideoID:     item.Snippet.ResourceId.VideoId,
+		Title:       item.Snippet.Title,
+		Description: item.Snippet.Description,
+		Link:        fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.Snippet.ResourceId.VideoId),
+		PublishedAt: publishedAt,
+		ChannelID:   item.Snippet.ChannelId,
+		Source:      model.SourceYouTube,
+	}, nil
 }
 
 func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err error) {
-	s.logger.Info("scraping channel", "id", id)
+	s.logger.Info("scraping channel", zap.String("id", id))
 	defer func() {
-		s.logger.Info("scraping channel done", "id", id, "videos", len(videos))
+		s.logger.Info("scraping channel done",
+			zap.String("id", id),
+			zap.Int("videos", len(videos)))
 	}()
 
 	response, err := s.service.Channels.List([]string{"contentDetails"}).Id(id).Do()
@@ -90,7 +102,7 @@ func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err 
 	for {
 		page++
 
-		s.logger.Debug("scraping channel page", "page", page)
+		s.logger.Debug("scraping channel page", zap.Int("page", page))
 		call := s.service.PlaylistItems.List([]string{"snippet"}).
 			PlaylistId(uploadsPlaylistID).
 			MaxResults(int64(s.pageResults))
@@ -104,7 +116,10 @@ func (s *Scraper) scrapeChannel(id string) (videos []*youtube.PlaylistItem, err 
 		} else if len(playlistResult.Items) == 0 {
 			break
 		}
-		s.logger.Debug("scraping channel page successful", "page", page, "videos", len(playlistResult.Items), "sample", playlistResult.Items[0].Snippet.Title)
+		s.logger.Debug("scraping channel page successful",
+			zap.Int("page", page),
+			zap.Int("videos", len(playlistResult.Items)),
+			zap.String("sample", playlistResult.Items[0].Snippet.Title))
 
 		videos = append(videos, playlistResult.Items...)
 

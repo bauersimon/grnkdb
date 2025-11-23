@@ -1,0 +1,27 @@
+name: Connector
+on: [push, pull_request]
+env:
+  IS_CI: 1
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v3
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.1'
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: |
+          go get .
+          just install-lint
+      - name: Build Go
+        run: just build
+      - name: Lint Go
+        run: just lint
+      - name: Test Go
+        run: just test

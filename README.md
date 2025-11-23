@@ -9,7 +9,7 @@ Attempt to semi-automate scraping and cataloging all video games that [Gronkh](h
 ## How do I use it?
 
 - Check out [grnkdb.dev](https://grnkdb.dev/).
-- Download the list at [grnkdb.dev/data.csv](https://grnkdb.dev/data.csv).
+- Download the list at [grnkdb.dev/data.json](https://grnkdb.dev/data.json).
 - Try the scraper locally by cloning the repo and running `go run main.go` (requires [Go](https://go.dev/) and a [YouTube API](https://developers.google.com/youtube/v3/getting-started) key).
 
 ## What state are we at?
