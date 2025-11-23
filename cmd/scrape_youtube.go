@@ -16,7 +16,7 @@ import (
 type YouTubeCommand struct {
 	logger *zap.Logger
 
-	APIKey      string `long:"api-key" description:"YouTube API key"`
+	APIKey      string `long:"api-key" description:"YouTube API key" env:"YOUTUBE_API_KEY"`
 	Output      string `long:"output" default:"./data" description:"Output directory for CSV files"`
 	PageResults uint   `long:"page-results" default:"50" description:"YouTube results per request"`
 	PageLimit   uint   `long:"page-limit" default:"0" description:"YouTube page limit (disabled: 0)"`
